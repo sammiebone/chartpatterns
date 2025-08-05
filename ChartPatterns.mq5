@@ -32,6 +32,7 @@ input int                   UptrendMinHeight  = 300;          // Minimum height 
 input bool                  TradeFailedWedgeBreakouts = true; // Trade bullish breakouts from Ascending Wedges
 input int                   RsiPeriod         = 14;           // RSI Period
 input int                   RsiDivergenceLookback = 30;       // Lookback for RSI Divergence
+input int                   DowntrendMinHeight = 300;         // Minimum height of the preceding downtrend for Descending Wedge
 
 //--- global variables
 CTrade trade;
@@ -307,10 +308,17 @@ bool IsDescendingBroadeningWedge(const double &high[], const double &low[],
 
         if(upper_slope < 0 && lower_slope < 0 && lower_slope < upper_slope)
         {
-            breakoutPrice = upper_fractals[0];
-            stopLoss = lower_fractals[0] - StopLossPips * _Point;
-            takeProfit = high[upper_fractal_indices[2]]; // Method 1: Highest point of the wedge
-            return true;
+            // Confirm preceding downtrend
+            int wedge_start_index = lower_fractal_indices[2];
+            double price_at_wedge_start = high[wedge_start_index];
+            double price_before_wedge = high[wedge_start_index + 20]; // 20 bars before wedge
+            if(price_before_wedge - price_at_wedge_start > DowntrendMinHeight * _Point)
+            {
+                breakoutPrice = upper_fractals[0];
+                stopLoss = lower_fractals[0] - StopLossPips * _Point;
+                takeProfit = high[upper_fractal_indices[2]]; // Method 1: Highest point of the wedge
+                return true;
+            }
         }
     }
 
