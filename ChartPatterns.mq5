@@ -30,10 +30,13 @@ input int                   PennantMaxBars    = 25;           // Max bars for pe
 input int                   LookbackBars      = 100;          // Bars to look back for pattern
 input int                   UptrendMinHeight  = 300;          // Minimum height of the preceding uptrend for Ascending Wedge
 input bool                  TradeFailedWedgeBreakouts = true; // Trade bullish breakouts from Ascending Wedges
+input int                   RsiPeriod         = 14;           // RSI Period
+input int                   RsiDivergenceLookback = 30;       // Lookback for RSI Divergence
 
 //--- global variables
 CTrade trade;
 int    fractals_handle;
+int    rsi_handle;
 
 //+------------------------------------------------------------------+
 //| Expert initialization function                                   |
@@ -43,6 +46,7 @@ int OnInit()
 //---
    trade.SetExpertMagicNumber(MagicNumber);
    fractals_handle = iFractals(_Symbol, _Period);
+   rsi_handle = iRSI(_Symbol, _Period, RsiPeriod, PRICE_CLOSE);
    return(INIT_SUCCEEDED);
   }
 //+------------------------------------------------------------------+
@@ -366,16 +370,37 @@ int IsAscendingBroadeningWedge(const double &high[], const double &low[],
             double price_before_wedge = low[wedge_start_index + 20]; // 20 bars before wedge
             if(price_at_wedge_start - price_before_wedge > UptrendMinHeight * _Point)
             {
-                breakdownPrice = lower_fractals[0];
-                breakoutPrice = upper_fractals[0];
-                stopLoss = upper_fractals[0] + StopLossPips * _Point;
-                takeProfit = low[lower_fractal_indices[2]]; // Method 1: Lowest point of the wedge
-                return 1; // Bearish breakout
+                // Check for RSI divergence
+                if(CheckRSIDivergence(high, upper_fractal_indices[0], upper_fractal_indices[2]))
+                {
+                    breakdownPrice = lower_fractals[0];
+                    breakoutPrice = upper_fractals[0];
+                    stopLoss = upper_fractals[0] + StopLossPips * _Point;
+                    takeProfit = low[lower_fractal_indices[2]]; // Method 1: Lowest point of the wedge
+                    return 1; // Bearish breakout
+                }
             }
         }
     }
 
     return 0;
+}
+//+------------------------------------------------------------------+
+//| RSI Divergence Check                                             |
+//+------------------------------------------------------------------+
+bool CheckRSIDivergence(const double &high[], const int high_index1, const int high_index2)
+{
+    double rsi_buffer[];
+    CopyBuffer(rsi_handle, 0, 0, RsiDivergenceLookback, rsi_buffer);
+    ArraySetAsSeries(rsi_buffer, true);
+
+    double rsi_high1 = rsi_buffer[high_index1];
+    double rsi_high2 = rsi_buffer[high_index2];
+
+    if(high[high_index1] > high[high_index2] && rsi_high1 < rsi_high2)
+        return true;
+
+    return false;
 }
 //+------------------------------------------------------------------+
 //| Expert tick function                                             |
