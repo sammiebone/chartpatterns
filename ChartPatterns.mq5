@@ -314,11 +314,15 @@ int IsDescendingBroadeningWedge(const double &high[], const double &low[],
             double price_before_wedge = high[wedge_start_index + 20]; // 20 bars before wedge
             if(price_before_wedge - price_at_wedge_start > DowntrendMinHeight * _Point)
             {
-                breakoutPrice = upper_fractals[0];
-                breakdownPrice = lower_fractals[0];
-                stopLoss = lower_fractals[0] - StopLossPips * _Point;
-                takeProfit = high[upper_fractal_indices[2]]; // Method 1: Highest point of the wedge
-                return 1; // Bullish breakout
+                // Check for RSI divergence
+                if(CheckRSIDivergence(low, lower_fractal_indices[0], lower_fractal_indices[2], BULLISH_DIVERGENCE))
+                {
+                    breakoutPrice = upper_fractals[0];
+                    breakdownPrice = lower_fractals[0];
+                    stopLoss = lower_fractals[0] - StopLossPips * _Point;
+                    takeProfit = high[upper_fractal_indices[2]]; // Method 1: Highest point of the wedge
+                    return 1; // Bullish breakout
+                }
             }
         }
     }
@@ -380,7 +384,7 @@ int IsAscendingBroadeningWedge(const double &high[], const double &low[],
             if(price_at_wedge_start - price_before_wedge > UptrendMinHeight * _Point)
             {
                 // Check for RSI divergence
-                if(CheckRSIDivergence(high, upper_fractal_indices[0], upper_fractal_indices[2]))
+                if(CheckRSIDivergence(high, upper_fractal_indices[0], upper_fractal_indices[2], BEARISH_DIVERGENCE))
                 {
                     breakdownPrice = lower_fractals[0];
                     breakoutPrice = upper_fractals[0];
@@ -397,17 +401,31 @@ int IsAscendingBroadeningWedge(const double &high[], const double &low[],
 //+------------------------------------------------------------------+
 //| RSI Divergence Check                                             |
 //+------------------------------------------------------------------+
-bool CheckRSIDivergence(const double &high[], const int high_index1, const int high_index2)
+enum ENUM_DIVERGENCE_TYPE
+{
+    BULLISH_DIVERGENCE,
+    BEARISH_DIVERGENCE
+};
+
+bool CheckRSIDivergence(const double &price[], const int index1, const int index2, ENUM_DIVERGENCE_TYPE type)
 {
     double rsi_buffer[];
     CopyBuffer(rsi_handle, 0, 0, RsiDivergenceLookback, rsi_buffer);
     ArraySetAsSeries(rsi_buffer, true);
 
-    double rsi_high1 = rsi_buffer[high_index1];
-    double rsi_high2 = rsi_buffer[high_index2];
+    double rsi1 = rsi_buffer[index1];
+    double rsi2 = rsi_buffer[index2];
 
-    if(high[high_index1] > high[high_index2] && rsi_high1 < rsi_high2)
-        return true;
+    if(type == BEARISH_DIVERGENCE)
+    {
+        if(price[index1] > price[index2] && rsi1 < rsi2)
+            return true;
+    }
+    else if(type == BULLISH_DIVERGENCE)
+    {
+        if(price[index1] < price[index2] && rsi1 > rsi2)
+            return true;
+    }
 
     return false;
 }
