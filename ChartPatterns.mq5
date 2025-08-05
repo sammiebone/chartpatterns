@@ -118,15 +118,21 @@ bool IsBullishPennant(const double &high[], const double &low[], const long &vol
                       double &pennantLow, int &pennantLowIndex, double &breakoutPrice)
 {
     // 1. Find the Flagpole
-    for(int i = 1; i < LookbackBars - 10; i++)
+    for(int i = 1; i < LookbackBars - 20; i++)
     {
         if(high[i] > high[i+1] && low[i] > low[i+1] && (high[i] - low[i+10]) > FlagpoleMinHeight * _Point)
         {
-            flagpoleStartIndex = i;
-            flagpoleHigh = high[i];
-            flagpoleLow = low[i+10];
-            flagpoleBars = 10;
-            break;
+            // Confirm preceding uptrend
+            double price_at_flagpole_start = low[i+10];
+            double price_before_flagpole = low[i + 20]; // 10 bars before flagpole
+            if(price_at_flagpole_start - price_before_flagpole > UptrendMinHeight * _Point)
+            {
+                flagpoleStartIndex = i;
+                flagpoleHigh = high[i];
+                flagpoleLow = low[i+10];
+                flagpoleBars = 10;
+                break;
+            }
         }
     }
 
@@ -188,6 +194,7 @@ bool IsBullishPennant(const double &high[], const double &low[], const long &vol
         {
             pennantLow = lowFractal1;
             pennantLowIndex = lowFractalIndex1;
+            breakoutPrice = upFractal1;
             return true;
         }
     }
