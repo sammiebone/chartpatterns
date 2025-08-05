@@ -29,6 +29,7 @@ input int                   FlagpoleMinHeight = 200;          // Min flagpole he
 input int                   PennantMaxBars    = 25;           // Max bars for pennant
 input int                   LookbackBars      = 100;          // Bars to look back for pattern
 input int                   UptrendMinHeight  = 300;          // Minimum height of the preceding uptrend for Ascending Wedge
+input bool                  TradeFailedWedgeBreakouts = true; // Trade bullish breakouts from Ascending Wedges
 
 //--- global variables
 CTrade trade;
@@ -314,8 +315,8 @@ bool IsDescendingBroadeningWedge(const double &high[], const double &low[],
 //+------------------------------------------------------------------+
 //| Ascending Broadening Wedge Detection                             |
 //+------------------------------------------------------------------+
-bool IsAscendingBroadeningWedge(const double &high[], const double &low[],
-                                double &breakdownPrice, double &stopLoss, double &takeProfit)
+int IsAscendingBroadeningWedge(const double &high[], const double &low[],
+                                double &breakdownPrice, double &breakoutPrice, double &stopLoss, double &takeProfit)
 {
     // Find at least 3 higher highs and 3 higher lows
     double upper_fractals[], lower_fractals[];
@@ -347,7 +348,7 @@ bool IsAscendingBroadeningWedge(const double &high[], const double &low[],
     }
 
     if(upper_fractal_count < 3 || lower_fractal_count < 3)
-        return false;
+        return 0;
 
     // Check for higher highs and higher lows
     if(upper_fractals[0] > upper_fractals[1] && upper_fractals[1] > upper_fractals[2] &&
@@ -366,14 +367,15 @@ bool IsAscendingBroadeningWedge(const double &high[], const double &low[],
             if(price_at_wedge_start - price_before_wedge > UptrendMinHeight * _Point)
             {
                 breakdownPrice = lower_fractals[0];
+                breakoutPrice = upper_fractals[0];
                 stopLoss = upper_fractals[0] + StopLossPips * _Point;
                 takeProfit = low[lower_fractal_indices[2]]; // Method 1: Lowest point of the wedge
-                return true;
+                return 1; // Bearish breakout
             }
         }
     }
 
-    return false;
+    return 0;
 }
 //+------------------------------------------------------------------+
 //| Expert tick function                                             |
@@ -451,12 +453,21 @@ void OnTick()
 
     if(PatternToTrade == ASCENDING_BROADENING_WEDGE || PatternToTrade == ALL)
     {
-        double breakdownPrice = 0, stopLoss = 0, takeProfit = 0;
-        if(IsAscendingBroadeningWedge(high, low, breakdownPrice, stopLoss, takeProfit))
+        double breakdownPrice = 0, breakoutPrice = 0, stopLoss = 0, takeProfit = 0;
+        int breakout_type = IsAscendingBroadeningWedge(high, low, breakdownPrice, breakoutPrice, stopLoss, takeProfit);
+
+        if(breakout_type == 1) // Bearish breakout
         {
             if(close[1] < breakdownPrice)
             {
                 ExecuteTrade(ORDER_TYPE_SELL, stopLoss, takeProfit, "Ascending Broadening Wedge");
+            }
+        }
+        else if(breakout_type == 1 && TradeFailedWedgeBreakouts) // Bullish breakout
+        {
+            if(close[1] > breakoutPrice)
+            {
+                ExecuteTrade(ORDER_TYPE_BUY, stopLoss, takeProfit, "Ascending Wedge Failed Breakout");
             }
         }
     }
