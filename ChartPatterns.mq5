@@ -53,18 +53,22 @@ void ScaleParametersByTimeframe()
         case PERIOD_M1:
             FlagpoleMinHeight /= 4;
             DowntrendMinHeight /= 4;
+            UptrendMinHeight /= 4;
             break;
         case PERIOD_M5:
             FlagpoleMinHeight /= 2;
             DowntrendMinHeight /= 2;
+            UptrendMinHeight /= 2;
             break;
         case PERIOD_H1:
             FlagpoleMinHeight *= 2;
             DowntrendMinHeight *= 2;
+            UptrendMinHeight *= 2;
             break;
         case PERIOD_D1:
             FlagpoleMinHeight *= 4;
             DowntrendMinHeight *= 4;
+            UptrendMinHeight *= 4;
             break;
     }
 }
