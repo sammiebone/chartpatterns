@@ -28,6 +28,7 @@ input int                   StopLossPips      = 50;           // Stop loss in pi
 input int                   FlagpoleMinHeight = 200;          // Min flagpole height in points
 input int                   PennantMaxBars    = 25;           // Max bars for pennant
 input int                   LookbackBars      = 100;          // Bars to look back for pattern
+input int                   UptrendMinHeight  = 300;          // Minimum height of the preceding uptrend for Ascending Wedge
 
 //--- global variables
 CTrade trade;
@@ -358,10 +359,17 @@ bool IsAscendingBroadeningWedge(const double &high[], const double &low[],
 
         if(upper_slope > 0 && lower_slope > 0 && upper_slope > lower_slope)
         {
-            breakdownPrice = lower_fractals[0];
-            stopLoss = upper_fractals[0] + StopLossPips * _Point;
-            takeProfit = low[lower_fractal_indices[2]]; // Method 1: Lowest point of the wedge
-            return true;
+            // Confirm preceding uptrend
+            int wedge_start_index = upper_fractal_indices[2];
+            double price_at_wedge_start = low[wedge_start_index];
+            double price_before_wedge = low[wedge_start_index + 20]; // 20 bars before wedge
+            if(price_at_wedge_start - price_before_wedge > UptrendMinHeight * _Point)
+            {
+                breakdownPrice = lower_fractals[0];
+                stopLoss = upper_fractals[0] + StopLossPips * _Point;
+                takeProfit = low[lower_fractal_indices[2]]; // Method 1: Lowest point of the wedge
+                return true;
+            }
         }
     }
 
