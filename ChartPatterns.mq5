@@ -239,9 +239,17 @@ bool IsBearishPennant(const double &high[], const double &low[], const long &vol
 
         if(flagpoleVolume > pennantVolume)
         {
-            pennantHigh = upFractal1;
-            pennantHighIndex = upFractalIndex1;
-            return true;
+            // Confirm preceding downtrend
+            int pennant_start_index = upFractalIndex2;
+            double price_at_pennant_start = high[pennant_start_index];
+            double price_before_pennant = high[pennant_start_index + 20]; // 20 bars before pennant
+            if(price_before_pennant - price_at_pennant_start > DowntrendMinHeight * _Point)
+            {
+                pennantHigh = upFractal1;
+                pennantHighIndex = upFractalIndex1;
+                breakdownPrice = lowFractal1;
+                return true;
+            }
         }
     }
 
