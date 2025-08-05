@@ -36,12 +36,14 @@ input int                   DowntrendMinHeight = 300;         // Minimum height 
 input int                   MacdFastEmaPeriod = 12;         // MACD Fast EMA Period
 input int                   MacdSlowEmaPeriod = 26;         // MACD Slow EMA Period
 input int                   MacdSignalPeriod  = 9;            // MACD Signal Period
+input int                   LongTermMaPeriod  = 200;          // Long-Term Moving Average Period
 
 //--- global variables
 CTrade trade;
 int    fractals_handle;
 int    rsi_handle;
 int    macd_handle;
+int    ma_handle;
 
 //+------------------------------------------------------------------+
 //| Timeframe Parameter Scaling                                      |
@@ -82,6 +84,7 @@ int OnInit()
    fractals_handle = iFractals(_Symbol, _Period);
    rsi_handle = iRSI(_Symbol, _Period, RsiPeriod, PRICE_CLOSE);
    macd_handle = iMACD(_Symbol, _Period, MacdFastEmaPeriod, MacdSlowEmaPeriod, MacdSignalPeriod, PRICE_CLOSE);
+   ma_handle = iMA(_Symbol, _Period, LongTermMaPeriod, 0, MODE_SMA, PRICE_CLOSE);
    ScaleParametersByTimeframe();
    return(INIT_SUCCEEDED);
   }
@@ -200,10 +203,13 @@ bool IsBullishPennant(const double &high[], const double &low[], const long &vol
 
         if(flagpoleVolume > pennantVolume)
         {
-            pennantLow = lowFractal1;
-            pennantLowIndex = lowFractalIndex1;
-            breakoutPrice = upFractal1;
-            return true;
+            if(CheckLongTermTrend(low))
+            {
+                pennantLow = lowFractal1;
+                pennantLowIndex = lowFractalIndex1;
+                breakoutPrice = upFractal1;
+                return true;
+            }
         }
     }
 
@@ -504,6 +510,19 @@ bool CheckMACDConfirmation()
 
     // Check for bearish cross
     if(macd_main_buffer[1] > macd_signal_buffer[1] && macd_main_buffer[2] < macd_signal_buffer[2])
+        return true;
+
+    return false;
+}
+//+------------------------------------------------------------------+
+//| Long-Term Trend Check                                            |
+//+------------------------------------------------------------------+
+bool CheckLongTermTrend(const double &close[])
+{
+    double ma_buffer[];
+    CopyBuffer(ma_handle, 0, 0, 1, ma_buffer);
+
+    if(close[1] > ma_buffer[0])
         return true;
 
     return false;
