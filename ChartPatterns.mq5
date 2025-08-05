@@ -179,7 +179,11 @@ bool IsBullishPennant(const double &high[], const double &low[], const long &vol
         }
     }
 
-    if(upFractal1 < upFractal2 && lowFractal1 > lowFractal2)
+    // Check for converging trendlines
+    double upper_slope = (upFractal1 - upFractal2) / (upFractalIndex1 - upFractalIndex2);
+    double lower_slope = (lowFractal1 - lowFractal2) / (lowFractalIndex1 - lowFractalIndex2);
+
+    if(upper_slope < 0 && lower_slope > 0)
     {
         // 3. Volume Confirmation
         long flagpoleVolume = 0;
@@ -264,7 +268,11 @@ bool IsBearishPennant(const double &high[], const double &low[], const long &vol
         }
     }
 
-    if(upFractal1 < upFractal2 && lowFractal1 > lowFractal2)
+    // Check for converging trendlines
+    double upper_slope = (upFractal1 - upFractal2) / (upFractalIndex1 - upFractalIndex2);
+    double lower_slope = (lowFractal1 - lowFractal2) / (lowFractalIndex1 - lowFractalIndex2);
+
+    if(upper_slope < 0 && lower_slope > 0)
     {
         // 3. Volume Confirmation
         long flagpoleVolume = 0;
