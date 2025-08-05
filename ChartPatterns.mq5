@@ -263,8 +263,8 @@ void ExecuteTrade(ENUM_ORDER_TYPE type, double sl, double tp, string comment)
 //+------------------------------------------------------------------+
 //| Descending Broadening Wedge Detection                            |
 //+------------------------------------------------------------------+
-bool IsDescendingBroadeningWedge(const double &high[], const double &low[],
-                                 double &breakoutPrice, double &stopLoss, double &takeProfit)
+int IsDescendingBroadeningWedge(const double &high[], const double &low[],
+                                 double &breakoutPrice, double &breakdownPrice, double &stopLoss, double &takeProfit)
 {
     // Find at least 3 lower highs and 3 lower lows
     double upper_fractals[], lower_fractals[];
@@ -296,7 +296,7 @@ bool IsDescendingBroadeningWedge(const double &high[], const double &low[],
     }
 
     if(upper_fractal_count < 3 || lower_fractal_count < 3)
-        return false;
+        return 0;
 
     // Check for lower highs and lower lows
     if(upper_fractals[0] < upper_fractals[1] && upper_fractals[1] < upper_fractals[2] &&
@@ -315,14 +315,15 @@ bool IsDescendingBroadeningWedge(const double &high[], const double &low[],
             if(price_before_wedge - price_at_wedge_start > DowntrendMinHeight * _Point)
             {
                 breakoutPrice = upper_fractals[0];
+                breakdownPrice = lower_fractals[0];
                 stopLoss = lower_fractals[0] - StopLossPips * _Point;
                 takeProfit = high[upper_fractal_indices[2]]; // Method 1: Highest point of the wedge
-                return true;
+                return 1; // Bullish breakout
             }
         }
     }
 
-    return false;
+    return 0;
 }
 //+------------------------------------------------------------------+
 //| Ascending Broadening Wedge Detection                             |
@@ -472,14 +473,23 @@ void OnTick()
         }
     }
 
-    if(PatternToTrade == DESCENDING_BROADENING_WEDGE || PatternToTrade == ALL)
+    if(PatternToTrade == DESCENDING_BROADENING_Wedge || PatternToTrade == ALL)
     {
-        double breakoutPrice = 0, stopLoss = 0, takeProfit = 0;
-        if(IsDescendingBroadeningWedge(high, low, breakoutPrice, stopLoss, takeProfit))
+        double breakoutPrice = 0, breakdownPrice = 0, stopLoss = 0, takeProfit = 0;
+        int breakout_type = IsDescendingBroadeningWedge(high, low, breakoutPrice, breakdownPrice, stopLoss, takeProfit);
+
+        if(breakout_type == 1) // Bullish breakout
         {
             if(close[1] > breakoutPrice)
             {
                 ExecuteTrade(ORDER_TYPE_BUY, stopLoss, takeProfit, "Descending Broadening Wedge");
+            }
+        }
+        else if(breakout_type == 1 && TradeFailedWedgeBreakouts) // Bearish breakout
+        {
+            if(close[1] < breakdownPrice)
+            {
+                ExecuteTrade(ORDER_TYPE_SELL, stopLoss, takeProfit, "Descending Wedge Failed Breakout");
             }
         }
     }
