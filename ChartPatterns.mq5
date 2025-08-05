@@ -33,11 +33,15 @@ input bool                  TradeFailedWedgeBreakouts = true; // Trade bullish b
 input int                   RsiPeriod         = 14;           // RSI Period
 input int                   RsiDivergenceLookback = 30;       // Lookback for RSI Divergence
 input int                   DowntrendMinHeight = 300;         // Minimum height of the preceding downtrend for Descending Wedge
+input int                   MacdFastEmaPeriod = 12;         // MACD Fast EMA Period
+input int                   MacdSlowEmaPeriod = 26;         // MACD Slow EMA Period
+input int                   MacdSignalPeriod  = 9;            // MACD Signal Period
 
 //--- global variables
 CTrade trade;
 int    fractals_handle;
 int    rsi_handle;
+int    macd_handle;
 
 //+------------------------------------------------------------------+
 //| Timeframe Parameter Scaling                                      |
@@ -73,6 +77,7 @@ int OnInit()
    trade.SetExpertMagicNumber(MagicNumber);
    fractals_handle = iFractals(_Symbol, _Period);
    rsi_handle = iRSI(_Symbol, _Period, RsiPeriod, PRICE_CLOSE);
+   macd_handle = iMACD(_Symbol, _Period, MacdFastEmaPeriod, MacdSlowEmaPeriod, MacdSignalPeriod, PRICE_CLOSE);
    ScaleParametersByTimeframe();
    return(INIT_SUCCEEDED);
   }
@@ -271,10 +276,14 @@ bool IsBearishPennant(const double &high[], const double &low[], const long &vol
             double price_before_pennant = high[pennant_start_index + 20]; // 20 bars before pennant
             if(price_before_pennant - price_at_pennant_start > DowntrendMinHeight * _Point)
             {
-                pennantHigh = upFractal1;
-                pennantHighIndex = upFractalIndex1;
-                breakdownPrice = lowFractal1;
-                return true;
+                // Check for MACD confirmation
+                if(CheckMACDConfirmation())
+                {
+                    pennantHigh = upFractal1;
+                    pennantHighIndex = upFractalIndex1;
+                    breakdownPrice = lowFractal1;
+                    return true;
+                }
             }
         }
     }
@@ -460,6 +469,23 @@ bool CheckRSIDivergence(const double &price[], const int index1, const int index
         if(price[index1] < price[index2] && rsi1 > rsi2)
             return true;
     }
+
+    return false;
+}
+//+------------------------------------------------------------------+
+//| MACD Confirmation Check                                          |
+//+------------------------------------------------------------------+
+bool CheckMACDConfirmation()
+{
+    double macd_main_buffer[], macd_signal_buffer[];
+    CopyBuffer(macd_handle, 0, 0, 3, macd_main_buffer);
+    CopyBuffer(macd_handle, 1, 0, 3, macd_signal_buffer);
+    ArraySetAsSeries(macd_main_buffer, true);
+    ArraySetAsSeries(macd_signal_buffer, true);
+
+    // Check for bearish cross
+    if(macd_main_buffer[1] > macd_signal_buffer[1] && macd_main_buffer[2] < macd_signal_buffer[2])
+        return true;
 
     return false;
 }
