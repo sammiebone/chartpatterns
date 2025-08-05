@@ -40,6 +40,31 @@ int    fractals_handle;
 int    rsi_handle;
 
 //+------------------------------------------------------------------+
+//| Timeframe Parameter Scaling                                      |
+//+------------------------------------------------------------------+
+void ScaleParametersByTimeframe()
+{
+    switch(_Period)
+    {
+        case PERIOD_M1:
+            FlagpoleMinHeight /= 4;
+            DowntrendMinHeight /= 4;
+            break;
+        case PERIOD_M5:
+            FlagpoleMinHeight /= 2;
+            DowntrendMinHeight /= 2;
+            break;
+        case PERIOD_H1:
+            FlagpoleMinHeight *= 2;
+            DowntrendMinHeight *= 2;
+            break;
+        case PERIOD_D1:
+            FlagpoleMinHeight *= 4;
+            DowntrendMinHeight *= 4;
+            break;
+    }
+}
+//+------------------------------------------------------------------+
 //| Expert initialization function                                   |
 //+------------------------------------------------------------------+
 int OnInit()
@@ -48,6 +73,7 @@ int OnInit()
    trade.SetExpertMagicNumber(MagicNumber);
    fractals_handle = iFractals(_Symbol, _Period);
    rsi_handle = iRSI(_Symbol, _Period, RsiPeriod, PRICE_CLOSE);
+   ScaleParametersByTimeframe();
    return(INIT_SUCCEEDED);
   }
 //+------------------------------------------------------------------+
