@@ -14,8 +14,9 @@
 //--- input parameters
 enum ENUM_PATTERN_TO_TRADE
   {
-   BULLISH,
-   BEARISH,
+   BULLISH_PENNANT,
+   BEARISH_PENNANT,
+   DESCENDING_BROADENING_WEDGE,
    BOTH
   };
 
@@ -241,15 +242,72 @@ bool IsBearishPennant(const double &high[], const double &low[], const long &vol
 //+------------------------------------------------------------------+
 //| Trading Functions                                                |
 //+------------------------------------------------------------------+
-void ExecuteTrade(ENUM_ORDER_TYPE type, double sl, double tp)
+void ExecuteTrade(ENUM_ORDER_TYPE type, double sl, double tp, string comment)
 {
     if(PositionsTotal() > 0)
         return;
 
     if(type == ORDER_TYPE_BUY)
-        trade.Buy(Lots, NULL, 0, sl, tp, "Bullish Pennant");
+        trade.Buy(Lots, NULL, 0, sl, tp, comment);
     else if(type == ORDER_TYPE_SELL)
-        trade.Sell(Lots, NULL, 0, sl, tp, "Bearish Pennant");
+        trade.Sell(Lots, NULL, 0, sl, tp, comment);
+}
+//+------------------------------------------------------------------+
+//| Descending Broadening Wedge Detection                            |
+//+------------------------------------------------------------------+
+bool IsDescendingBroadeningWedge(const double &high[], const double &low[],
+                                 double &breakoutPrice, double &stopLoss, double &takeProfit)
+{
+    // Find at least 3 lower highs and 3 lower lows
+    double upper_fractals[], lower_fractals[];
+    int upper_fractal_indices[], lower_fractal_indices[];
+    int upper_fractal_count = 0, lower_fractal_count = 0;
+
+    double upper_fractals_buffer[], lower_fractals_buffer[];
+    CopyBuffer(fractals_handle, 0, 0, LookbackBars, upper_fractals_buffer);
+    CopyBuffer(fractals_handle, 1, 0, LookbackBars, lower_fractals_buffer);
+
+    for(int i = 0; i < LookbackBars; i++)
+    {
+        if(upper_fractals_buffer[i] > 0)
+        {
+            ArrayResize(upper_fractals, upper_fractal_count + 1);
+            ArrayResize(upper_fractal_indices, upper_fractal_count + 1);
+            upper_fractals[upper_fractal_count] = upper_fractals_buffer[i];
+            upper_fractal_indices[upper_fractal_count] = i;
+            upper_fractal_count++;
+        }
+        if(lower_fractals_buffer[i] > 0)
+        {
+            ArrayResize(lower_fractals, lower_fractal_count + 1);
+            ArrayResize(lower_fractal_indices, lower_fractal_count + 1);
+            lower_fractals[lower_fractal_count] = lower_fractals_buffer[i];
+            lower_fractal_indices[lower_fractal_count] = i;
+            lower_fractal_count++;
+        }
+    }
+
+    if(upper_fractal_count < 3 || lower_fractal_count < 3)
+        return false;
+
+    // Check for lower highs and lower lows
+    if(upper_fractals[0] < upper_fractals[1] && upper_fractals[1] < upper_fractals[2] &&
+       low[lower_fractal_indices[0]] < low[lower_fractal_indices[1]] && low[lower_fractal_indices[1]] < low[lower_fractal_indices[2]])
+    {
+        // Check for divergence
+        double upper_slope = (upper_fractals[0] - upper_fractals[2]) / (upper_fractal_indices[0] - upper_fractal_indices[2]);
+        double lower_slope = (lower_fractals[0] - lower_fractals[2]) / (lower_fractal_indices[0] - lower_fractal_indices[2]);
+
+        if(upper_slope < 0 && lower_slope < 0 && lower_slope < upper_slope)
+        {
+            breakoutPrice = upper_fractals[0];
+            stopLoss = lower_fractals[0] - StopLossPips * _Point;
+            takeProfit = high[upper_fractal_indices[2]]; // Method 1: Highest point of the wedge
+            return true;
+        }
+    }
+
+    return false;
 }
 //+------------------------------------------------------------------+
 //| Expert tick function                                             |
@@ -270,7 +328,8 @@ void OnTick()
         return;
 
     // --- Pattern Detection ---
-    if(PatternToTrade == BULLISH || PatternToTrade == BOTH)
+    // --- Pattern Detection ---
+    if(PatternToTrade == BULLISH_PENNANT || PatternToTrade == BOTH)
     {
         int flagpoleStartIndex = -1;
         double flagpoleHigh = 0, flagpoleLow = 0;
@@ -286,12 +345,12 @@ void OnTick()
             {
                 double sl = pennantLow - StopLossPips * _Point;
                 double tp = close[1] + (flagpoleHigh - flagpoleLow);
-                ExecuteTrade(ORDER_TYPE_BUY, sl, tp);
+                ExecuteTrade(ORDER_TYPE_BUY, sl, tp, "Bullish Pennant");
             }
         }
     }
 
-    if(PatternToTrade == BEARISH || PatternToTrade == BOTH)
+    if(PatternToTrade == BEARISH_PENNANT || PatternToTrade == BOTH)
     {
         int flagpoleStartIndex = -1;
         double flagpoleHigh = 0, flagpoleLow = 0;
@@ -307,7 +366,19 @@ void OnTick()
             {
                 double sl = pennantHigh + StopLossPips * _Point;
                 double tp = close[1] - (flagpoleHigh - flagpoleLow);
-                ExecuteTrade(ORDER_TYPE_SELL, sl, tp);
+                ExecuteTrade(ORDER_TYPE_SELL, sl, tp, "Bearish Pennant");
+            }
+        }
+    }
+
+    if(PatternToTrade == DESCENDING_BROADENING_WEDGE || PatternToTrade == BOTH)
+    {
+        double breakoutPrice = 0, stopLoss = 0, takeProfit = 0;
+        if(IsDescendingBroadeningWedge(high, low, breakoutPrice, stopLoss, takeProfit))
+        {
+            if(close[1] > breakoutPrice)
+            {
+                ExecuteTrade(ORDER_TYPE_BUY, stopLoss, takeProfit, "Descending Broadening Wedge");
             }
         }
     }
