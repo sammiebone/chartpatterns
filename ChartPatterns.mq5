@@ -205,10 +205,13 @@ bool IsBullishPennant(const double &high[], const double &low[], const long &vol
         {
             if(CheckLongTermTrend(low))
             {
-                pennantLow = lowFractal1;
-                pennantLowIndex = lowFractalIndex1;
-                breakoutPrice = upFractal1;
-                return true;
+                if(CheckMACDConfirmation(BULLISH_CROSS))
+                {
+                    pennantLow = lowFractal1;
+                    pennantLowIndex = lowFractalIndex1;
+                    breakoutPrice = upFractal1;
+                    return true;
+                }
             }
         }
     }
@@ -302,7 +305,7 @@ bool IsBearishPennant(const double &high[], const double &low[], const long &vol
             if(price_before_pennant - price_at_pennant_start > DowntrendMinHeight * _Point)
             {
                 // Check for MACD confirmation
-                if(CheckMACDConfirmation())
+                if(CheckMACDConfirmation(BEARISH_CROSS))
                 {
                     pennantHigh = upFractal1;
                     pennantHighIndex = upFractalIndex1;
@@ -500,7 +503,13 @@ bool CheckRSIDivergence(const double &price[], const int index1, const int index
 //+------------------------------------------------------------------+
 //| MACD Confirmation Check                                          |
 //+------------------------------------------------------------------+
-bool CheckMACDConfirmation()
+enum ENUM_MACD_SIGNAL_TYPE
+{
+    BULLISH_CROSS,
+    BEARISH_CROSS
+};
+
+bool CheckMACDConfirmation(ENUM_MACD_SIGNAL_TYPE type)
 {
     double macd_main_buffer[], macd_signal_buffer[];
     CopyBuffer(macd_handle, 0, 0, 3, macd_main_buffer);
@@ -508,9 +517,18 @@ bool CheckMACDConfirmation()
     ArraySetAsSeries(macd_main_buffer, true);
     ArraySetAsSeries(macd_signal_buffer, true);
 
-    // Check for bearish cross
-    if(macd_main_buffer[1] > macd_signal_buffer[1] && macd_main_buffer[2] < macd_signal_buffer[2])
-        return true;
+    if(type == BEARISH_CROSS)
+    {
+        // Check for bearish cross
+        if(macd_main_buffer[1] > macd_signal_buffer[1] && macd_main_buffer[2] < macd_signal_buffer[2])
+            return true;
+    }
+    else if(type == BULLISH_CROSS)
+    {
+        // Check for bullish cross
+        if(macd_main_buffer[1] < macd_signal_buffer[1] && macd_main_buffer[2] > macd_signal_buffer[2])
+            return true;
+    }
 
     return false;
 }
