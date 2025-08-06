@@ -41,6 +41,7 @@ input int                   TP1_Pips = 20;                    // Take Profit 1 i
 input int                   TP2_Pips = 50;                    // Take Profit 2 in pips
 input int                   TP3_Pips = 100;                   // Take Profit 3 in pips
 input bool                  EnableTrailingStop = true;        // Enable Trailing Stop to TP1
+input int                   TrailingStopPlusPips = 10;        // Pips to add to SL when trailing
 
 //--- global variables
 CTrade trade;
@@ -603,20 +604,20 @@ void ManageTrailingStop()
                                 tp1_price = PositionGetDouble(POSITION_PRICE_OPEN) - TP1_Pips * _Point;
 
                             if(PositionGetDouble(POSITION_SL) < tp1_price)
-                                trade.PositionModify(_Symbol, tp1_price, PositionGetDouble(POSITION_TP));
+                                trade.PositionModify(_Symbol, tp1_price + TrailingStopPlusPips * _Point, PositionGetDouble(POSITION_TP));
                         }
                         else if(PositionGetString(POSITION_COMMENT) == "Bullish Pennant TP3" || PositionGetString(POSITION_COMMENT) == "Bearish Pennant TP3" ||
                                 PositionGetString(POSITION_COMMENT) == "Descending Broadening Wedge TP3" || PositionGetString(POSITION_COMMENT) == "Ascending Broadening Wedge TP3" ||
                                 PositionGetString(POSITION_COMMENT) == "Descending Wedge Failed Breakout TP3" || PositionGetString(POSITION_COMMENT) == "Ascending Wedge Failed Breakout TP3")
                         {
-                            double tp1_price = 0;
+                            double tp2_price = 0;
                             if(PositionGetDouble(POSITION_TYPE) == POSITION_TYPE_BUY)
-                                tp1_price = PositionGetDouble(POSITION_PRICE_OPEN) + TP1_Pips * _Point;
+                                tp2_price = PositionGetDouble(POSITION_PRICE_OPEN) + TP2_Pips * _Point;
                             else
-                                tp1_price = PositionGetDouble(POSITION_PRICE_OPEN) - TP1_Pips * _Point;
+                                tp2_price = PositionGetDouble(POSITION_PRICE_OPEN) - TP2_Pips * _Point;
 
-                            if(PositionGetDouble(POSITION_SL) < tp1_price)
-                                trade.PositionModify(_Symbol, tp1_price, PositionGetDouble(POSITION_TP));
+                            if(PositionGetDouble(POSITION_SL) < tp2_price)
+                                trade.PositionModify(_Symbol, tp2_price + TrailingStopPlusPips * _Point, PositionGetDouble(POSITION_TP));
                         }
                     }
                 }
