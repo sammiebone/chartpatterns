@@ -19,6 +19,7 @@ enum ENUM_PATTERN_TO_TRADE
    DESCENDING_BROADENING_WEDGE,
    ASCENDING_BROADENING_WEDGE,
    BULLISH_RECTANGLE,
+   BEARISH_RECTANGLE,
    ALL
   };
 
@@ -643,6 +644,18 @@ void ManageTrailingStop()
             }
         }
     }
+
+    if(PatternToTrade == BEARISH_RECTANGLE || PatternToTrade == ALL)
+    {
+        double breakdownPrice = 0, stopLoss = 0, takeProfit = 0;
+        if(IsBearishRectangle(high, low, breakdownPrice, stopLoss, takeProfit))
+        {
+            if(close[1] < breakdownPrice)
+            {
+                ExecuteTrade(ORDER_TYPE_SELL, stopLoss, "Bearish Rectangle");
+            }
+        }
+    }
 }
 //+------------------------------------------------------------------+
 //| Bullish Rectangle Detection                                      |
@@ -710,6 +723,68 @@ bool IsBullishRectangle(const double &high[], const double &low[],
                 return true;
             }
             }
+        }
+    }
+
+    return false;
+}
+//+------------------------------------------------------------------+
+//| Bearish Rectangle Detection                                      |
+//+------------------------------------------------------------------+
+bool IsBearishRectangle(const double &high[], const double &low[],
+                        double &breakdownPrice, double &stopLoss, double &takeProfit)
+{
+    Print("Analyzing for Bearish Rectangle...");
+    // Find at least 2 comparable highs and 2 comparable lows
+    double upper_fractals[], lower_fractals[];
+    int upper_fractal_indices[], lower_fractal_indices[];
+    int upper_fractal_count = 0, lower_fractal_count = 0;
+
+    double upper_fractals_buffer[], lower_fractals_buffer[];
+    CopyBuffer(fractals_handle, 0, 0, LookbackBars, upper_fractals_buffer);
+    CopyBuffer(fractals_handle, 1, 0, LookbackBars, lower_fractals_buffer);
+
+    for(int i = 0; i < LookbackBars; i++)
+    {
+        if(upper_fractals_buffer[i] > 0)
+        {
+            ArrayResize(upper_fractals, upper_fractal_count + 1);
+            ArrayResize(upper_fractal_indices, upper_fractal_count + 1);
+            upper_fractals[upper_fractal_count] = upper_fractals_buffer[i];
+            upper_fractal_indices[upper_fractal_count] = i;
+            upper_fractal_count++;
+        }
+        if(lower_fractals_buffer[i] > 0)
+        {
+            ArrayResize(lower_fractals, lower_fractal_count + 1);
+            ArrayResize(lower_fractal_indices, lower_fractal_count + 1);
+            lower_fractals[lower_fractal_count] = lower_fractals_buffer[i];
+            lower_fractal_indices[lower_fractal_count] = i;
+            lower_fractal_count++;
+        }
+    }
+
+    if(upper_fractal_count < 2 || lower_fractal_count < 2)
+        return false;
+
+    // Check for horizontal trendlines
+    double upper_level = (upper_fractals[0] + upper_fractals[1]) / 2;
+    double lower_level = (lower_fractals[0] + lower_fractals[1]) / 2;
+    double tolerance = 10 * _Point;
+
+    if(MathAbs(upper_fractals[0] - upper_level) < tolerance && MathAbs(upper_fractals[1] - upper_level) < tolerance &&
+       MathAbs(lower_fractals[0] - lower_level) < tolerance && MathAbs(lower_fractals[1] - lower_level) < tolerance)
+    {
+        // Confirm preceding downtrend
+        int rectangle_start_index = MathMax(upper_fractal_indices[1], lower_fractal_indices[1]);
+        double price_at_rectangle_start = high[rectangle_start_index];
+        double price_before_rectangle = high[rectangle_start_index + 20]; // 20 bars before rectangle
+        if(price_before_rectangle - price_at_rectangle_start > scaled_DowntrendMinHeight * _Point)
+        {
+            breakdownPrice = lower_level;
+            stopLoss = upper_level + StopLossPips * _Point;
+            takeProfit = breakdownPrice - (upper_level - lower_level);
+            return true;
         }
     }
 
