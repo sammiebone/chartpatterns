@@ -43,6 +43,8 @@ input int                   TP2_Pips = 50;                    // Take Profit 2 i
 input int                   TP3_Pips = 100;                   // Take Profit 3 in pips
 input bool                  EnableTrailingStop = true;        // Enable Trailing Stop to TP1
 input int                   TrailingStopPlusPips = 10;        // Pips to add to SL when trailing
+input int                   RectangleMinDuration = 10;        // Minimum duration of a rectangle in bars
+input int                   RectangleMaxDuration = 50;        // Maximum duration of a rectangle in bars
 
 //--- global variables
 CTrade trade;
@@ -689,16 +691,21 @@ bool IsBullishRectangle(const double &high[], const double &low[],
     if(MathAbs(upper_fractals[0] - upper_level) < tolerance && MathAbs(upper_fractals[1] - upper_level) < tolerance &&
        MathAbs(lower_fractals[0] - lower_level) < tolerance && MathAbs(lower_fractals[1] - lower_level) < tolerance)
     {
-        // Confirm preceding uptrend
-        int rectangle_start_index = MathMax(upper_fractal_indices[1], lower_fractal_indices[1]);
-        double price_at_rectangle_start = low[rectangle_start_index];
-        double price_before_rectangle = low[rectangle_start_index + 20]; // 20 bars before rectangle
-        if(price_at_rectangle_start - price_before_rectangle > scaled_UptrendMinHeight * _Point)
+        // Check duration
+        int duration = MathAbs(upper_fractal_indices[0] - lower_fractal_indices[0]);
+        if(duration >= RectangleMinDuration && duration <= RectangleMaxDuration)
         {
-            breakoutPrice = upper_level;
-            stopLoss = lower_level - StopLossPips * _Point;
-            takeProfit = breakoutPrice + (upper_level - lower_level);
-            return true;
+            // Confirm preceding uptrend
+            int rectangle_start_index = MathMax(upper_fractal_indices[1], lower_fractal_indices[1]);
+            double price_at_rectangle_start = low[rectangle_start_index];
+            double price_before_rectangle = low[rectangle_start_index + 20]; // 20 bars before rectangle
+            if(price_at_rectangle_start - price_before_rectangle > scaled_UptrendMinHeight * _Point)
+            {
+                breakoutPrice = upper_level;
+                stopLoss = lower_level - StopLossPips * _Point;
+                takeProfit = breakoutPrice + (upper_level - lower_level);
+                return true;
+            }
         }
     }
 
