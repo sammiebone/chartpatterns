@@ -37,6 +37,10 @@ input int                   MacdFastEmaPeriod = 12;         // MACD Fast EMA Per
 input int                   MacdSlowEmaPeriod = 26;         // MACD Slow EMA Period
 input int                   MacdSignalPeriod  = 9;            // MACD Signal Period
 input int                   LongTermMaPeriod  = 200;          // Long-Term Moving Average Period
+input int                   TP1_Pips = 20;                    // Take Profit 1 in pips
+input int                   TP2_Pips = 50;                    // Take Profit 2 in pips
+input int                   TP3_Pips = 100;                   // Take Profit 3 in pips
+input bool                  EnableTrailingStop = true;        // Enable Trailing Stop to TP1
 
 //--- global variables
 CTrade trade;
@@ -124,6 +128,7 @@ bool IsBullishPennant(const double &high[], const double &low[], const long &vol
                       int &flagpoleStartIndex, double &flagpoleHigh, double &flagpoleLow, int &flagpoleBars,
                       double &pennantLow, int &pennantLowIndex, double &breakoutPrice)
 {
+    Print("Analyzing for Bullish Pennant...");
     // 1. Find the Flagpole
     for(int i = 1; i < LookbackBars - 20; i++)
     {
@@ -207,6 +212,7 @@ bool IsBullishPennant(const double &high[], const double &low[], const long &vol
             {
                 if(CheckMACDConfirmation(BULLISH_CROSS))
                 {
+                    Print("Bullish Pennant confirmed.");
                     pennantLow = lowFractal1;
                     pennantLowIndex = lowFractalIndex1;
                     breakoutPrice = upFractal1;
@@ -225,6 +231,7 @@ bool IsBearishPennant(const double &high[], const double &low[], const long &vol
                       int &flagpoleStartIndex, double &flagpoleHigh, double &flagpoleLow, int &flagpoleBars,
                       double &pennantHigh, int &pennantHighIndex, double &breakdownPrice)
 {
+    Print("Analyzing for Bearish Pennant...");
     // 1. Find the Flagpole
     for(int i = 1; i < LookbackBars - 10; i++)
     {
@@ -307,6 +314,7 @@ bool IsBearishPennant(const double &high[], const double &low[], const long &vol
                 // Check for MACD confirmation
                 if(CheckMACDConfirmation(BEARISH_CROSS))
                 {
+                    Print("Bearish Pennant confirmed.");
                     pennantHigh = upFractal1;
                     pennantHighIndex = upFractalIndex1;
                     breakdownPrice = lowFractal1;
@@ -321,15 +329,32 @@ bool IsBearishPennant(const double &high[], const double &low[], const long &vol
 //+------------------------------------------------------------------+
 //| Trading Functions                                                |
 //+------------------------------------------------------------------+
-void ExecuteTrade(ENUM_ORDER_TYPE type, double sl, double tp, string comment)
+void ExecuteTrade(ENUM_ORDER_TYPE type, double sl, string comment)
 {
     if(PositionsTotal() > 0)
         return;
 
+    double lot_size = Lots / 3.0;
+    double tp1, tp2, tp3;
+
     if(type == ORDER_TYPE_BUY)
-        trade.Buy(Lots, NULL, 0, sl, tp, comment);
+    {
+        tp1 = Ask + TP1_Pips * _Point;
+        tp2 = Ask + TP2_Pips * _Point;
+        tp3 = Ask + TP3_Pips * _Point;
+        trade.Buy(lot_size, NULL, 0, sl, tp1, comment + " TP1");
+        trade.Buy(lot_size, NULL, 0, sl, tp2, comment + " TP2");
+        trade.Buy(lot_size, NULL, 0, sl, tp3, comment + " TP3");
+    }
     else if(type == ORDER_TYPE_SELL)
-        trade.Sell(Lots, NULL, 0, sl, tp, comment);
+    {
+        tp1 = Bid - TP1_Pips * _Point;
+        tp2 = Bid - TP2_Pips * _Point;
+        tp3 = Bid - TP3_Pips * _Point;
+        trade.Sell(lot_size, NULL, 0, sl, tp1, comment + " TP1");
+        trade.Sell(lot_size, NULL, 0, sl, tp2, comment + " TP2");
+        trade.Sell(lot_size, NULL, 0, sl, tp3, comment + " TP3");
+    }
 }
 //+------------------------------------------------------------------+
 //| Descending Broadening Wedge Detection                            |
@@ -337,6 +362,7 @@ void ExecuteTrade(ENUM_ORDER_TYPE type, double sl, double tp, string comment)
 int IsDescendingBroadeningWedge(const double &high[], const double &low[],
                                  double &breakoutPrice, double &breakdownPrice, double &stopLoss, double &takeProfit)
 {
+    Print("Analyzing for Descending Broadening Wedge...");
     // Find at least 3 lower highs and 3 lower lows
     double upper_fractals[], lower_fractals[];
     int upper_fractal_indices[], lower_fractal_indices[];
@@ -388,6 +414,7 @@ int IsDescendingBroadeningWedge(const double &high[], const double &low[],
                 // Check for RSI divergence
                 if(CheckRSIDivergence(low, lower_fractal_indices[0], lower_fractal_indices[2], BULLISH_DIVERGENCE))
                 {
+                    Print("Descending Broadening Wedge confirmed.");
                     breakoutPrice = upper_fractals[0];
                     breakdownPrice = lower_fractals[0];
                     stopLoss = lower_fractals[0] - StopLossPips * _Point;
@@ -406,6 +433,7 @@ int IsDescendingBroadeningWedge(const double &high[], const double &low[],
 int IsAscendingBroadeningWedge(const double &high[], const double &low[],
                                 double &breakdownPrice, double &breakoutPrice, double &stopLoss, double &takeProfit)
 {
+    Print("Analyzing for Ascending Broadening Wedge...");
     // Find at least 3 higher highs and 3 higher lows
     double upper_fractals[], lower_fractals[];
     int upper_fractal_indices[], lower_fractal_indices[];
@@ -457,6 +485,7 @@ int IsAscendingBroadeningWedge(const double &high[], const double &low[],
                 // Check for RSI divergence
                 if(CheckRSIDivergence(high, upper_fractal_indices[0], upper_fractal_indices[2], BEARISH_DIVERGENCE))
                 {
+                    Print("Ascending Broadening Wedge confirmed.");
                     breakdownPrice = lower_fractals[0];
                     breakoutPrice = upper_fractals[0];
                     stopLoss = upper_fractals[0] + StopLossPips * _Point;
@@ -546,6 +575,56 @@ bool CheckLongTermTrend(const double &close[])
     return false;
 }
 //+------------------------------------------------------------------+
+//| Trailing Stop Management                                         |
+//+------------------------------------------------------------------+
+void ManageTrailingStop()
+{
+    if(!EnableTrailingStop)
+        return;
+
+    for(int i = PositionsTotal() - 1; i >= 0; i--)
+    {
+        if(PositionSelect(_Symbol))
+        {
+            if(PositionGetInteger(POSITION_MAGIC) == MagicNumber)
+            {
+                if(PositionGetDouble(POSITION_TP) > 0) // TP is set
+                {
+                    if(PositionGetDouble(POSITION_PROFIT) > 0) // Position is in profit
+                    {
+                        if(PositionGetString(POSITION_COMMENT) == "Bullish Pennant TP2" || PositionGetString(POSITION_COMMENT) == "Bearish Pennant TP2" ||
+                           PositionGetString(POSITION_COMMENT) == "Descending Broadening Wedge TP2" || PositionGetString(POSITION_COMMENT) == "Ascending Broadening Wedge TP2" ||
+                           PositionGetString(POSITION_COMMENT) == "Descending Wedge Failed Breakout TP2" || PositionGetString(POSITION_COMMENT) == "Ascending Wedge Failed Breakout TP2")
+                        {
+                            double tp1_price = 0;
+                            if(PositionGetDouble(POSITION_TYPE) == POSITION_TYPE_BUY)
+                                tp1_price = PositionGetDouble(POSITION_PRICE_OPEN) + TP1_Pips * _Point;
+                            else
+                                tp1_price = PositionGetDouble(POSITION_PRICE_OPEN) - TP1_Pips * _Point;
+
+                            if(PositionGetDouble(POSITION_SL) < tp1_price)
+                                trade.PositionModify(_Symbol, tp1_price, PositionGetDouble(POSITION_TP));
+                        }
+                        else if(PositionGetString(POSITION_COMMENT) == "Bullish Pennant TP3" || PositionGetString(POSITION_COMMENT) == "Bearish Pennant TP3" ||
+                                PositionGetString(POSITION_COMMENT) == "Descending Broadening Wedge TP3" || PositionGetString(POSITION_COMMENT) == "Ascending Broadening Wedge TP3" ||
+                                PositionGetString(POSITION_COMMENT) == "Descending Wedge Failed Breakout TP3" || PositionGetString(POSITION_COMMENT) == "Ascending Wedge Failed Breakout TP3")
+                        {
+                            double tp1_price = 0;
+                            if(PositionGetDouble(POSITION_TYPE) == POSITION_TYPE_BUY)
+                                tp1_price = PositionGetDouble(POSITION_PRICE_OPEN) + TP1_Pips * _Point;
+                            else
+                                tp1_price = PositionGetDouble(POSITION_PRICE_OPEN) - TP1_Pips * _Point;
+
+                            if(PositionGetDouble(POSITION_SL) < tp1_price)
+                                trade.PositionModify(_Symbol, tp1_price, PositionGetDouble(POSITION_TP));
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+//+------------------------------------------------------------------+
 //| Expert tick function                                             |
 //+------------------------------------------------------------------+
 void OnTick()
@@ -556,6 +635,7 @@ void OnTick()
         return;
     lastBarTime = TimeCurrent();
 
+    ManageTrailingStop();
     // Get historical data
     double high[], low[], close[];
     datetime time[];
@@ -580,8 +660,7 @@ void OnTick()
             if(close[1] > breakoutPrice)
             {
                 double sl = pennantLow - StopLossPips * _Point;
-                double tp = close[1] + (flagpoleHigh - flagpoleLow);
-                ExecuteTrade(ORDER_TYPE_BUY, sl, tp, "Bullish Pennant");
+                ExecuteTrade(ORDER_TYPE_BUY, sl, "Bullish Pennant");
             }
         }
     }
@@ -601,8 +680,7 @@ void OnTick()
             if(close[1] < breakdownPrice)
             {
                 double sl = pennantHigh + StopLossPips * _Point;
-                double tp = close[1] - (flagpoleHigh - flagpoleLow);
-                ExecuteTrade(ORDER_TYPE_SELL, sl, tp, "Bearish Pennant");
+                ExecuteTrade(ORDER_TYPE_SELL, sl, "Bearish Pennant");
             }
         }
     }
@@ -616,14 +694,14 @@ void OnTick()
         {
             if(close[1] > breakoutPrice)
             {
-                ExecuteTrade(ORDER_TYPE_BUY, stopLoss, takeProfit, "Descending Broadening Wedge");
+                ExecuteTrade(ORDER_TYPE_BUY, stopLoss, "Descending Broadening Wedge");
             }
         }
         else if(breakout_type == 1 && TradeFailedWedgeBreakouts) // Bearish breakout
         {
             if(close[1] < breakdownPrice)
             {
-                ExecuteTrade(ORDER_TYPE_SELL, stopLoss, takeProfit, "Descending Wedge Failed Breakout");
+                ExecuteTrade(ORDER_TYPE_SELL, stopLoss, "Descending Wedge Failed Breakout");
             }
         }
     }
@@ -637,14 +715,14 @@ void OnTick()
         {
             if(close[1] < breakdownPrice)
             {
-                ExecuteTrade(ORDER_TYPE_SELL, stopLoss, takeProfit, "Ascending Broadening Wedge");
+                ExecuteTrade(ORDER_TYPE_SELL, stopLoss, "Ascending Broadening Wedge");
             }
         }
         else if(breakout_type == 1 && TradeFailedWedgeBreakouts) // Bullish breakout
         {
             if(close[1] > breakoutPrice)
             {
-                ExecuteTrade(ORDER_TYPE_BUY, stopLoss, takeProfit, "Ascending Wedge Failed Breakout");
+                ExecuteTrade(ORDER_TYPE_BUY, stopLoss, "Ascending Wedge Failed Breakout");
             }
         }
     }
