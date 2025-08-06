@@ -49,33 +49,40 @@ int    fractals_handle;
 int    rsi_handle;
 int    macd_handle;
 int    ma_handle;
+int    scaled_FlagpoleMinHeight;
+int    scaled_DowntrendMinHeight;
+int    scaled_UptrendMinHeight;
 
 //+------------------------------------------------------------------+
 //| Timeframe Parameter Scaling                                      |
 //+------------------------------------------------------------------+
 void ScaleParametersByTimeframe()
 {
+    scaled_FlagpoleMinHeight = FlagpoleMinHeight;
+    scaled_DowntrendMinHeight = DowntrendMinHeight;
+    scaled_UptrendMinHeight = UptrendMinHeight;
+
     switch(_Period)
     {
         case PERIOD_M1:
-            FlagpoleMinHeight /= 4;
-            DowntrendMinHeight /= 4;
-            UptrendMinHeight /= 4;
+            scaled_FlagpoleMinHeight /= 4;
+            scaled_DowntrendMinHeight /= 4;
+            scaled_UptrendMinHeight /= 4;
             break;
         case PERIOD_M5:
-            FlagpoleMinHeight /= 2;
-            DowntrendMinHeight /= 2;
-            UptrendMinHeight /= 2;
+            scaled_FlagpoleMinHeight /= 2;
+            scaled_DowntrendMinHeight /= 2;
+            scaled_UptrendMinHeight /= 2;
             break;
         case PERIOD_H1:
-            FlagpoleMinHeight *= 2;
-            DowntrendMinHeight *= 2;
-            UptrendMinHeight *= 2;
+            scaled_FlagpoleMinHeight *= 2;
+            scaled_DowntrendMinHeight *= 2;
+            scaled_UptrendMinHeight *= 2;
             break;
         case PERIOD_D1:
-            FlagpoleMinHeight *= 4;
-            DowntrendMinHeight *= 4;
-            UptrendMinHeight *= 4;
+            scaled_FlagpoleMinHeight *= 4;
+            scaled_DowntrendMinHeight *= 4;
+            scaled_UptrendMinHeight *= 4;
             break;
     }
 }
@@ -133,12 +140,12 @@ bool IsBullishPennant(const double &high[], const double &low[], const long &vol
     // 1. Find the Flagpole
     for(int i = 1; i < LookbackBars - 20; i++)
     {
-        if(high[i] > high[i+1] && low[i] > low[i+1] && (high[i] - low[i+10]) > FlagpoleMinHeight * _Point)
+        if(high[i] > high[i+1] && low[i] > low[i+1] && (high[i] - low[i+10]) > scaled_FlagpoleMinHeight * _Point)
         {
             // Confirm preceding uptrend
             double price_at_flagpole_start = low[i+10];
             double price_before_flagpole = low[i + 20]; // 10 bars before flagpole
-            if(price_at_flagpole_start - price_before_flagpole > UptrendMinHeight * _Point)
+            if(price_at_flagpole_start - price_before_flagpole > scaled_UptrendMinHeight * _Point)
             {
                 flagpoleStartIndex = i;
                 flagpoleHigh = high[i];
@@ -236,7 +243,7 @@ bool IsBearishPennant(const double &high[], const double &low[], const long &vol
     // 1. Find the Flagpole
     for(int i = 1; i < LookbackBars - 10; i++)
     {
-        if(low[i] < low[i+1] && high[i] < high[i+1] && (high[i+10] - low[i]) > FlagpoleMinHeight * _Point)
+        if(low[i] < low[i+1] && high[i] < high[i+1] && (high[i+10] - low[i]) > scaled_FlagpoleMinHeight * _Point)
         {
             flagpoleStartIndex = i;
             flagpoleHigh = high[i+10];
@@ -340,18 +347,18 @@ void ExecuteTrade(ENUM_ORDER_TYPE type, double sl, string comment)
 
     if(type == ORDER_TYPE_BUY)
     {
-        tp1 = Ask + TP1_Pips * _Point;
-        tp2 = Ask + TP2_Pips * _Point;
-        tp3 = Ask + TP3_Pips * _Point;
+        tp1 = SymbolInfoDouble(_Symbol, SYMBOL_ASK) + TP1_Pips * _Point;
+        tp2 = SymbolInfoDouble(_Symbol, SYMBOL_ASK) + TP2_Pips * _Point;
+        tp3 = SymbolInfoDouble(_Symbol, SYMBOL_ASK) + TP3_Pips * _Point;
         trade.Buy(lot_size, NULL, 0, sl, tp1, comment + " TP1");
         trade.Buy(lot_size, NULL, 0, sl, tp2, comment + " TP2");
         trade.Buy(lot_size, NULL, 0, sl, tp3, comment + " TP3");
     }
     else if(type == ORDER_TYPE_SELL)
     {
-        tp1 = Bid - TP1_Pips * _Point;
-        tp2 = Bid - TP2_Pips * _Point;
-        tp3 = Bid - TP3_Pips * _Point;
+        tp1 = SymbolInfoDouble(_Symbol, SYMBOL_BID) - TP1_Pips * _Point;
+        tp2 = SymbolInfoDouble(_Symbol, SYMBOL_BID) - TP2_Pips * _Point;
+        tp3 = SymbolInfoDouble(_Symbol, SYMBOL_BID) - TP3_Pips * _Point;
         trade.Sell(lot_size, NULL, 0, sl, tp1, comment + " TP1");
         trade.Sell(lot_size, NULL, 0, sl, tp2, comment + " TP2");
         trade.Sell(lot_size, NULL, 0, sl, tp3, comment + " TP3");
@@ -410,7 +417,7 @@ int IsDescendingBroadeningWedge(const double &high[], const double &low[],
             int wedge_start_index = lower_fractal_indices[2];
             double price_at_wedge_start = high[wedge_start_index];
             double price_before_wedge = high[wedge_start_index + 20]; // 20 bars before wedge
-            if(price_before_wedge - price_at_wedge_start > DowntrendMinHeight * _Point)
+            if(price_before_wedge - price_at_wedge_start > scaled_DowntrendMinHeight * _Point)
             {
                 // Check for RSI divergence
                 if(CheckRSIDivergence(low, lower_fractal_indices[0], lower_fractal_indices[2], BULLISH_DIVERGENCE))
@@ -481,7 +488,7 @@ int IsAscendingBroadeningWedge(const double &high[], const double &low[],
             int wedge_start_index = upper_fractal_indices[2];
             double price_at_wedge_start = low[wedge_start_index];
             double price_before_wedge = low[wedge_start_index + 20]; // 20 bars before wedge
-            if(price_at_wedge_start - price_before_wedge > UptrendMinHeight * _Point)
+            if(price_at_wedge_start - price_before_wedge > scaled_UptrendMinHeight * _Point)
             {
                 // Check for RSI divergence
                 if(CheckRSIDivergence(high, upper_fractal_indices[0], upper_fractal_indices[2], BEARISH_DIVERGENCE))
@@ -593,31 +600,28 @@ void ManageTrailingStop()
                 {
                     if(PositionGetDouble(POSITION_PROFIT) > 0) // Position is in profit
                     {
-                        if(PositionGetString(POSITION_COMMENT) == "Bullish Pennant TP2" || PositionGetString(POSITION_COMMENT) == "Bearish Pennant TP2" ||
-                           PositionGetString(POSITION_COMMENT) == "Descending Broadening Wedge TP2" || PositionGetString(POSITION_COMMENT) == "Ascending Broadening Wedge TP2" ||
-                           PositionGetString(POSITION_COMMENT) == "Descending Wedge Failed Breakout TP2" || PositionGetString(POSITION_COMMENT) == "Ascending Wedge Failed Breakout TP2")
+                        string comment = PositionGetString(POSITION_COMMENT);
+                        if(StringFind(comment, "TP2") != -1)
                         {
                             double tp1_price = 0;
-                            if(PositionGetDouble(POSITION_TYPE) == POSITION_TYPE_BUY)
+                            if(PositionGetInteger(POSITION_TYPE) == POSITION_TYPE_BUY)
                                 tp1_price = PositionGetDouble(POSITION_PRICE_OPEN) + TP1_Pips * _Point;
                             else
                                 tp1_price = PositionGetDouble(POSITION_PRICE_OPEN) - TP1_Pips * _Point;
 
                             if(PositionGetDouble(POSITION_SL) < tp1_price)
-                                trade.PositionModify(_Symbol, tp1_price + TrailingStopPlusPips * _Point, PositionGetDouble(POSITION_TP));
+                                trade.PositionModify(PositionGetTicket(), tp1_price + TrailingStopPlusPips * _Point, PositionGetDouble(POSITION_TP));
                         }
-                        else if(PositionGetString(POSITION_COMMENT) == "Bullish Pennant TP3" || PositionGetString(POSITION_COMMENT) == "Bearish Pennant TP3" ||
-                                PositionGetString(POSITION_COMMENT) == "Descending Broadening Wedge TP3" || PositionGetString(POSITION_COMMENT) == "Ascending Broadening Wedge TP3" ||
-                                PositionGetString(POSITION_COMMENT) == "Descending Wedge Failed Breakout TP3" || PositionGetString(POSITION_COMMENT) == "Ascending Wedge Failed Breakout TP3")
+                        else if(StringFind(comment, "TP3") != -1)
                         {
                             double tp2_price = 0;
-                            if(PositionGetDouble(POSITION_TYPE) == POSITION_TYPE_BUY)
+                            if(PositionGetInteger(POSITION_TYPE) == POSITION_TYPE_BUY)
                                 tp2_price = PositionGetDouble(POSITION_PRICE_OPEN) + TP2_Pips * _Point;
                             else
                                 tp2_price = PositionGetDouble(POSITION_PRICE_OPEN) - TP2_Pips * _Point;
 
                             if(PositionGetDouble(POSITION_SL) < tp2_price)
-                                trade.PositionModify(_Symbol, tp2_price + TrailingStopPlusPips * _Point, PositionGetDouble(POSITION_TP));
+                                trade.PositionModify(PositionGetTicket(), tp2_price + TrailingStopPlusPips * _Point, PositionGetDouble(POSITION_TP));
                         }
                     }
                 }
@@ -686,7 +690,7 @@ void OnTick()
         }
     }
 
-    if(PatternToTrade == DESCENDING_BROADENING_Wedge || PatternToTrade == ALL)
+    if(PatternToTrade == DESCENDING_BROADENING_WEDGE || PatternToTrade == ALL)
     {
         double breakoutPrice = 0, breakdownPrice = 0, stopLoss = 0, takeProfit = 0;
         int breakout_type = IsDescendingBroadeningWedge(high, low, breakoutPrice, breakdownPrice, stopLoss, takeProfit);
