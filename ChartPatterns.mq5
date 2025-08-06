@@ -306,6 +306,11 @@ bool IsHeadAndShoulders(const double &high[], const double &low[], const long &v
         double necklineLow2 = lower_fractals[0];
         int necklineLowIndex2 = lower_fractal_indices[0];
 
+        // Neckline Slope Analysis
+        double necklineSlope = (necklineLow1 - necklineLow2) / (necklineLowIndex1 - necklineLowIndex2);
+        if(necklineSlope > 0)
+            return false;
+
         // Confirm preceding uptrend
         double price_at_pattern_start = low[leftShoulderIndex];
         double price_before_pattern = low[leftShoulderIndex + 20]; // 20 bars before pattern
