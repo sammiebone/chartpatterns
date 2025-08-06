@@ -289,6 +289,17 @@ bool IsHeadAndShoulders(const double &high[], const double &low[], const long &v
 
     if(head > leftShoulder && head > rightShoulder)
     {
+        // Symmetry Check
+        double shoulderHeightDifference = MathAbs(leftShoulder - rightShoulder);
+        if(shoulderHeightDifference > (head - MathMin(leftShoulder, rightShoulder)) * SymmetryTolerance)
+            return false;
+
+        int leftDuration = headIndex - leftShoulderIndex;
+        int rightDuration = rightShoulderIndex - headIndex;
+        double durationDifference = MathAbs(leftDuration - rightDuration);
+        if(durationDifference > MathMin(leftDuration, rightDuration) * SymmetryTolerance)
+            return false;
+
         // Identify Neckline
         double necklineLow1 = lower_fractals[1];
         int necklineLowIndex1 = lower_fractal_indices[1];
