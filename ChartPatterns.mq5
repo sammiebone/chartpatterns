@@ -898,10 +898,27 @@ bool IsBullishFlag(const double &high[], const double &low[], const long &volume
 
         if(flagpoleVolume > flagVolume)
         {
-            breakoutPrice = upper_fractals[0];
-            stopLoss = lower_fractals[0] - StopLossPips * _Point;
-            takeProfit = breakoutPrice + (flagpoleHigh - flagpoleLow);
-            return true;
+            // RSI Confirmation
+            double rsi_buffer[];
+            CopyBuffer(rsi_handle, 0, 0, RsiDivergenceLookback, rsi_buffer);
+            ArraySetAsSeries(rsi_buffer, true);
+            if(rsi_buffer[1] > 70) // Check if RSI was overbought
+            {
+                for(int i = 1; i < duration; i++)
+                {
+                    if(rsi_buffer[i] < 70) // Check if RSI has cooled off
+                    {
+                        // MACD Confirmation
+                        if(CheckMACDConfirmation(BULLISH_CROSS))
+                        {
+                            breakoutPrice = upper_fractals[0];
+                            stopLoss = lower_fractals[0] - StopLossPips * _Point;
+                            takeProfit = breakoutPrice + (flagpoleHigh - flagpoleLow);
+                            return true;
+                        }
+                    }
+                }
+            }
         }
     }
 
