@@ -701,10 +701,14 @@ bool IsBullishRectangle(const double &high[], const double &low[],
             double price_before_rectangle = low[rectangle_start_index + 20]; // 20 bars before rectangle
             if(price_at_rectangle_start - price_before_rectangle > scaled_UptrendMinHeight * _Point)
             {
+            if(CheckMACDConfirmation(BULLISH_CROSS))
+            {
+                Print("Bullish Rectangle confirmed.");
                 breakoutPrice = upper_level;
                 stopLoss = lower_level - StopLossPips * _Point;
                 takeProfit = breakoutPrice + (upper_level - lower_level);
                 return true;
+            }
             }
         }
     }
