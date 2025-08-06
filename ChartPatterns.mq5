@@ -149,6 +149,7 @@ bool IsBullishPennant(const double &high[], const double &low[], const long &vol
 {
     Print("Analyzing for Bullish Pennant...");
     // 1. Find the Flagpole
+    flagpoleStartIndex = -1;
     for(int i = 1; i < LookbackBars - 20; i++)
     {
         if(high[i] > high[i+1] && low[i] > low[i+1] && (high[i] - low[i+10]) > scaled_FlagpoleMinHeight * _Point)
@@ -168,7 +169,14 @@ bool IsBullishPennant(const double &high[], const double &low[], const long &vol
     }
 
     if(flagpoleStartIndex == -1)
+    {
+        Print("Bullish Pennant: Flagpole not found.");
         return false;
+    }
+    else
+    {
+        Print("Bullish Pennant: Flagpole found at index ", flagpoleStartIndex);
+    }
 
     // 2. Find the Pennant
     int pennantStartShift = flagpoleStartIndex - flagpoleBars;
@@ -216,6 +224,7 @@ bool IsBullishPennant(const double &high[], const double &low[], const long &vol
 
     if(upper_slope < 0 && lower_slope > 0)
     {
+        Print("Bullish Pennant: Converging trendlines found.");
         // 3. Volume Confirmation
         long flagpoleVolume = 0;
         for(int i = flagpoleStartIndex; i > pennantStartShift; i--)
@@ -227,19 +236,26 @@ bool IsBullishPennant(const double &high[], const double &low[], const long &vol
 
         if(flagpoleVolume > pennantVolume)
         {
+            Print("Bullish Pennant: Volume confirmed.");
             if(CheckLongTermTrend(low))
             {
+                Print("Bullish Pennant: Long-term trend confirmed.");
                 if(CheckMACDConfirmation(BULLISH_CROSS))
                 {
+                    Print("Bullish Pennant: MACD confirmed.");
                     Print("Bullish Pennant confirmed.");
                     pennantLow = lowFractal1;
                     pennantLowIndex = lowFractalIndex1;
                     breakoutPrice = upFractal1;
                     return true;
                 }
+                 else { Print("Bullish Pennant: MACD not confirmed."); }
             }
+             else { Print("Bullish Pennant: Long-term trend not confirmed."); }
         }
+         else { Print("Bullish Pennant: Volume not confirmed."); }
     }
+     else { Print("Bullish Pennant: Converging trendlines not found."); }
 
     return false;
 }
@@ -280,18 +296,23 @@ bool IsFallingWedge(const double &high[], const double &low[], const long &volum
     }
 
     if(upper_fractal_count < 3 || lower_fractal_count < 3)
+    {
+        Print("Falling Wedge: Not enough fractals.");
         return false;
+    }
 
     // Check for lower highs and lower lows
     if(upper_fractals[0] < upper_fractals[1] && upper_fractals[1] < upper_fractals[2] &&
        low[lower_fractal_indices[0]] < low[lower_fractal_indices[1]] && low[lower_fractal_indices[1]] < low[lower_fractal_indices[2]])
     {
+        Print("Falling Wedge: Lower highs and lower lows found.");
         // Check for converging trendlines
         double upper_slope = (upper_fractals[0] - upper_fractals[2]) / (upper_fractal_indices[0] - upper_fractal_indices[2]);
         double lower_slope = (low[lower_fractal_indices[0]] - low[lower_fractal_indices[2]]) / (lower_fractal_indices[0] - lower_fractal_indices[2]);
 
         if(upper_slope < 0 && lower_slope < 0 && upper_slope < lower_slope)
         {
+            Print("Falling Wedge: Converging trendlines found.");
             // Volume Confirmation
             long wedgeVolume = 0;
             for(int i = upper_fractal_indices[2]; i > 1; i--)
@@ -299,17 +320,23 @@ bool IsFallingWedge(const double &high[], const double &low[], const long &volum
 
             if(volume[1] > wedgeVolume / (upper_fractal_indices[2] - 1))
             {
+                Print("Falling Wedge: Volume confirmed.");
                 // RSI Divergence Confirmation
                 if(CheckRSIDivergence(low, lower_fractal_indices[0], lower_fractal_indices[2], BULLISH_DIVERGENCE))
                 {
+                    Print("Falling Wedge: RSI divergence confirmed.");
                     breakoutPrice = upper_fractals[0];
                     stopLoss = lower_fractals[0] - StopLossPips * _Point;
                     takeProfit = breakoutPrice + (upper_fractals[2] - low[lower_fractal_indices[2]]);
                     return true;
                 }
+                 else { Print("Falling Wedge: RSI divergence not confirmed."); }
             }
+             else { Print("Falling Wedge: Volume not confirmed."); }
         }
+         else { Print("Falling Wedge: Converging trendlines not found."); }
     }
+     else { Print("Falling Wedge: Lower highs and lower lows not found."); }
 
     return false;
 }
@@ -350,7 +377,10 @@ bool IsInvertedHeadAndShoulders(const double &high[], const double &low[], const
     }
 
     if(lower_fractal_count < 3 || upper_fractal_count < 2)
+    {
+        Print("Inverted Head and Shoulders: Not enough fractals.");
         return false;
+    }
 
     // Identify Left Shoulder, Head, and Right Shoulder
     double leftShoulder = lower_fractals[2];
@@ -362,16 +392,24 @@ bool IsInvertedHeadAndShoulders(const double &high[], const double &low[], const
 
     if(head < leftShoulder && head < rightShoulder)
     {
+        Print("Inverted Head and Shoulders: Head and shoulders structure found.");
         // Symmetry Check
         double shoulderHeightDifference = MathAbs(leftShoulder - rightShoulder);
         if(shoulderHeightDifference > (MathMax(leftShoulder, rightShoulder) - head) * SymmetryTolerance)
+        {
+            Print("Inverted Head and Shoulders: Symmetry check failed (height).");
             return false;
+        }
 
         int leftDuration = headIndex - leftShoulderIndex;
         int rightDuration = rightShoulderIndex - headIndex;
         double durationDifference = MathAbs(leftDuration - rightDuration);
         if(durationDifference > MathMin(leftDuration, rightDuration) * SymmetryTolerance)
+        {
+            Print("Inverted Head and Shoulders: Symmetry check failed (duration).");
             return false;
+        }
+        Print("Inverted Head and Shoulders: Symmetry confirmed.");
 
         // Identify Neckline
         double necklineHigh1 = upper_fractals[1];
@@ -382,13 +420,18 @@ bool IsInvertedHeadAndShoulders(const double &high[], const double &low[], const
         // Neckline Slope Analysis
         double necklineSlope = (necklineHigh1 - necklineHigh2) / (necklineHighIndex1 - necklineHighIndex2);
         if(necklineSlope < 0)
+        {
+            Print("Inverted Head and Shoulders: Neckline slope is downward.");
             return false;
+        }
+        Print("Inverted Head and Shoulders: Neckline slope confirmed.");
 
         // Confirm preceding downtrend
         double price_at_pattern_start = high[leftShoulderIndex];
         double price_before_pattern = high[leftShoulderIndex + 20]; // 20 bars before pattern
         if(price_before_pattern - price_at_pattern_start > scaled_DowntrendMinHeight * _Point)
         {
+            Print("Inverted Head and Shoulders: Preceding downtrend confirmed.");
             // Volume Confirmation
             long leftShoulderVolume = 0;
             for(int i = leftShoulderIndex; i > headIndex; i--)
@@ -404,13 +447,17 @@ bool IsInvertedHeadAndShoulders(const double &high[], const double &low[], const
 
             if(leftShoulderVolume > headVolume && headVolume > rightShoulderVolume)
             {
+                Print("Inverted Head and Shoulders: Volume confirmed.");
                 breakoutPrice = necklineHigh2;
                 stopLoss = rightShoulder - StopLossPips * _Point;
                 takeProfit = breakoutPrice + (necklineHigh1 - head);
                 return true;
             }
+             else { Print("Inverted Head and Shoulders: Volume not confirmed."); }
         }
+         else { Print("Inverted Head and Shoulders: Preceding downtrend not confirmed."); }
     }
+     else { Print("Inverted Head and Shoulders: Head and shoulders structure not found."); }
 
     return false;
 }
@@ -451,7 +498,10 @@ bool IsHeadAndShoulders(const double &high[], const double &low[], const long &v
     }
 
     if(upper_fractal_count < 3 || lower_fractal_count < 2)
+    {
+        Print("Head and Shoulders: Not enough fractals.");
         return false;
+    }
 
     // Identify Left Shoulder, Head, and Right Shoulder
     double leftShoulder = upper_fractals[2];
@@ -463,16 +513,24 @@ bool IsHeadAndShoulders(const double &high[], const double &low[], const long &v
 
     if(head > leftShoulder && head > rightShoulder)
     {
+        Print("Head and Shoulders: Head and shoulders structure found.");
         // Symmetry Check
         double shoulderHeightDifference = MathAbs(leftShoulder - rightShoulder);
         if(shoulderHeightDifference > (head - MathMin(leftShoulder, rightShoulder)) * SymmetryTolerance)
+        {
+            Print("Head and Shoulders: Symmetry check failed (height).");
             return false;
+        }
 
         int leftDuration = headIndex - leftShoulderIndex;
         int rightDuration = rightShoulderIndex - headIndex;
         double durationDifference = MathAbs(leftDuration - rightDuration);
         if(durationDifference > MathMin(leftDuration, rightDuration) * SymmetryTolerance)
+        {
+            Print("Head and Shoulders: Symmetry check failed (duration).");
             return false;
+        }
+        Print("Head and Shoulders: Symmetry confirmed.");
 
         // Identify Neckline
         double necklineLow1 = lower_fractals[1];
@@ -483,13 +541,18 @@ bool IsHeadAndShoulders(const double &high[], const double &low[], const long &v
         // Neckline Slope Analysis
         double necklineSlope = (necklineLow1 - necklineLow2) / (necklineLowIndex1 - necklineLowIndex2);
         if(necklineSlope > 0)
+        {
+            Print("Head and Shoulders: Neckline slope is upward.");
             return false;
+        }
+        Print("Head and Shoulders: Neckline slope confirmed.");
 
         // Confirm preceding uptrend
         double price_at_pattern_start = low[leftShoulderIndex];
         double price_before_pattern = low[leftShoulderIndex + 20]; // 20 bars before pattern
         if(price_at_pattern_start - price_before_pattern > scaled_UptrendMinHeight * _Point)
         {
+            Print("Head and Shoulders: Preceding uptrend confirmed.");
             // Volume Confirmation
             long leftShoulderVolume = 0;
             for(int i = leftShoulderIndex; i > headIndex; i--)
@@ -505,13 +568,17 @@ bool IsHeadAndShoulders(const double &high[], const double &low[], const long &v
 
             if(leftShoulderVolume > headVolume && headVolume > rightShoulderVolume)
             {
+                Print("Head and Shoulders: Volume confirmed.");
                 breakdownPrice = necklineLow2;
                 stopLoss = rightShoulder + StopLossPips * _Point;
                 takeProfit = breakdownPrice - (head - necklineLow1);
                 return true;
             }
+             else { Print("Head and Shoulders: Volume not confirmed."); }
         }
+         else { Print("Head and Shoulders: Preceding uptrend not confirmed."); }
     }
+     else { Print("Head and Shoulders: Head and shoulders structure not found."); }
 
     return false;
 }
@@ -543,7 +610,14 @@ bool IsBearishFlag(const double &high[], const double &low[], const long &volume
     }
 
     if(flagpoleStartIndex == -1)
+    {
+        Print("Bearish Flag: Flagpole not found.");
         return false;
+    }
+    else
+    {
+        Print("Bearish Flag: Flagpole found at index ", flagpoleStartIndex);
+    }
 
     // 2. Find the Flag
     int flagStartShift = flagpoleStartIndex - 10;
@@ -576,7 +650,10 @@ bool IsBearishFlag(const double &high[], const double &low[], const long &volume
     }
 
     if(upper_fractal_count < 2 || lower_fractal_count < 2)
+    {
+        Print("Bearish Flag: Not enough fractals.");
         return false;
+    }
 
     // Check for upward sloping channel
     double upper_slope = (upper_fractals[0] - upper_fractals[1]) / (upper_fractal_indices[0] - upper_fractal_indices[1]);
@@ -584,10 +661,15 @@ bool IsBearishFlag(const double &high[], const double &low[], const long &volume
 
     if(upper_slope > 0 && lower_slope > 0 && MathAbs(upper_slope - lower_slope) < 0.1)
     {
+        Print("Bearish Flag: Upward sloping channel found.");
         // Check duration
         int duration = MathAbs(upper_fractal_indices[0] - lower_fractal_indices[0]);
         if(duration > FlagMaxDuration)
+        {
+            Print("Bearish Flag: Duration check failed.");
             return false;
+        }
+        Print("Bearish Flag: Duration confirmed.");
 
         // 3. Volume Confirmation
         long flagpoleVolume = 0;
@@ -600,6 +682,7 @@ bool IsBearishFlag(const double &high[], const double &low[], const long &volume
 
         if(flagpoleVolume > flagVolume)
         {
+            Print("Bearish Flag: Volume confirmed.");
             // RSI Confirmation
             double rsi_buffer[];
             CopyBuffer(rsi_handle, 0, 0, RsiDivergenceLookback, rsi_buffer);
@@ -613,6 +696,7 @@ bool IsBearishFlag(const double &high[], const double &low[], const long &volume
                         // MACD Confirmation
                         if(CheckMACDConfirmation(BEARISH_CROSS))
                         {
+                            Print("Bearish Flag: MACD confirmed.");
                             breakdownPrice = lower_fractals[0];
                             stopLoss = upper_fractals[0] + StopLossPips * _Point;
                             takeProfit = breakdownPrice - (flagpoleHigh - flagpoleLow);
@@ -622,7 +706,9 @@ bool IsBearishFlag(const double &high[], const double &low[], const long &volume
                 }
             }
         }
+         else { Print("Bearish Flag: Volume not confirmed."); }
     }
+     else { Print("Bearish Flag: Upward sloping channel not found."); }
 
     return false;
 }
@@ -635,6 +721,7 @@ bool IsBearishPennant(const double &high[], const double &low[], const long &vol
 {
     Print("Analyzing for Bearish Pennant...");
     // 1. Find the Flagpole
+    flagpoleStartIndex = -1;
     for(int i = 1; i < LookbackBars - 10; i++)
     {
         if(low[i] < low[i+1] && high[i] < high[i+1] && (high[i+10] - low[i]) > scaled_FlagpoleMinHeight * _Point)
@@ -648,7 +735,14 @@ bool IsBearishPennant(const double &high[], const double &low[], const long &vol
     }
 
     if(flagpoleStartIndex == -1)
+    {
+        Print("Bearish Pennant: Flagpole not found.");
         return false;
+    }
+    else
+    {
+        Print("Bearish Pennant: Flagpole found at index ", flagpoleStartIndex);
+    }
 
     // 2. Find the Pennant
     int pennantStartShift = flagpoleStartIndex - flagpoleBars;
@@ -696,6 +790,7 @@ bool IsBearishPennant(const double &high[], const double &low[], const long &vol
 
     if(upper_slope < 0 && lower_slope > 0)
     {
+        Print("Bearish Pennant: Converging trendlines found.");
         // 3. Volume Confirmation
         long flagpoleVolume = 0;
         for(int i = flagpoleStartIndex; i > pennantStartShift; i--)
@@ -707,24 +802,31 @@ bool IsBearishPennant(const double &high[], const double &low[], const long &vol
 
         if(flagpoleVolume > pennantVolume)
         {
+            Print("Bearish Pennant: Volume confirmed.");
             // Confirm preceding downtrend
             int pennant_start_index = upFractalIndex2;
             double price_at_pennant_start = high[pennant_start_index];
             double price_before_pennant = high[pennant_start_index + 20]; // 20 bars before pennant
             if(price_before_pennant - price_at_pennant_start > DowntrendMinHeight * _Point)
             {
+                Print("Bearish Pennant: Preceding downtrend confirmed.");
                 // Check for MACD confirmation
                 if(CheckMACDConfirmation(BEARISH_CROSS))
                 {
+                    Print("Bearish Pennant: MACD confirmed.");
                     Print("Bearish Pennant confirmed.");
                     pennantHigh = upFractal1;
                     pennantHighIndex = upFractalIndex1;
                     breakdownPrice = lowFractal1;
                     return true;
                 }
+                 else { Print("Bearish Pennant: MACD not confirmed."); }
             }
+             else { Print("Bearish Pennant: Preceding downtrend not confirmed."); }
         }
+         else { Print("Bearish Pennant: Volume not confirmed."); }
     }
+     else { Print("Bearish Pennant: Converging trendlines not found."); }
 
     return false;
 }
@@ -734,7 +836,10 @@ bool IsBearishPennant(const double &high[], const double &low[], const long &vol
 void ExecuteTrade(ENUM_ORDER_TYPE type, double sl, string comment)
 {
     if(PositionsTotal() > 0)
+    {
+        Print("ExecuteTrade: An order already exists.");
         return;
+    }
 
     double lot_size = Lots / 3.0;
     double tp1, tp2, tp3;
@@ -744,6 +849,7 @@ void ExecuteTrade(ENUM_ORDER_TYPE type, double sl, string comment)
         tp1 = SymbolInfoDouble(_Symbol, SYMBOL_ASK) + TP1_Pips * _Point;
         tp2 = SymbolInfoDouble(_Symbol, SYMBOL_ASK) + TP2_Pips * _Point;
         tp3 = SymbolInfoDouble(_Symbol, SYMBOL_ASK) + TP3_Pips * _Point;
+        Print("Placing BUY order for ", _Symbol, " with Lot Size: ", lot_size, ", SL: ", sl, ", TP1: ", tp1, ", TP2: ", tp2, ", TP3: ", tp3);
         trade.Buy(lot_size, NULL, 0, sl, tp1, comment + " TP1");
         trade.Buy(lot_size, NULL, 0, sl, tp2, comment + " TP2");
         trade.Buy(lot_size, NULL, 0, sl, tp3, comment + " TP3");
@@ -753,6 +859,7 @@ void ExecuteTrade(ENUM_ORDER_TYPE type, double sl, string comment)
         tp1 = SymbolInfoDouble(_Symbol, SYMBOL_BID) - TP1_Pips * _Point;
         tp2 = SymbolInfoDouble(_Symbol, SYMBOL_BID) - TP2_Pips * _Point;
         tp3 = SymbolInfoDouble(_Symbol, SYMBOL_BID) - TP3_Pips * _Point;
+        Print("Placing SELL order for ", _Symbol, " with Lot Size: ", lot_size, ", SL: ", sl, ", TP1: ", tp1, ", TP2: ", tp2, ", TP3: ", tp3);
         trade.Sell(lot_size, NULL, 0, sl, tp1, comment + " TP1");
         trade.Sell(lot_size, NULL, 0, sl, tp2, comment + " TP2");
         trade.Sell(lot_size, NULL, 0, sl, tp3, comment + " TP3");
@@ -795,27 +902,34 @@ int IsDescendingBroadeningWedge(const double &high[], const double &low[],
     }
 
     if(upper_fractal_count < 3 || lower_fractal_count < 3)
+    {
+        Print("Descending Broadening Wedge: Not enough fractals.");
         return 0;
+    }
 
     // Check for lower highs and lower lows
     if(upper_fractals[0] < upper_fractals[1] && upper_fractals[1] < upper_fractals[2] &&
        low[lower_fractal_indices[0]] < low[lower_fractal_indices[1]] && low[lower_fractal_indices[1]] < low[lower_fractal_indices[2]])
     {
+        Print("Descending Broadening Wedge: Lower highs and lower lows found.");
         // Check for divergence
         double upper_slope = (upper_fractals[0] - upper_fractals[2]) / (upper_fractal_indices[0] - upper_fractal_indices[2]);
         double lower_slope = (lower_fractals[0] - lower_fractals[2]) / (lower_fractal_indices[0] - lower_fractal_indices[2]);
 
         if(upper_slope < 0 && lower_slope < 0 && lower_slope < upper_slope)
         {
+            Print("Descending Broadening Wedge: Diverging trendlines found.");
             // Confirm preceding downtrend
             int wedge_start_index = lower_fractal_indices[2];
             double price_at_wedge_start = high[wedge_start_index];
             double price_before_wedge = high[wedge_start_index + 20]; // 20 bars before wedge
             if(price_before_wedge - price_at_wedge_start > scaled_DowntrendMinHeight * _Point)
             {
+                Print("Descending Broadening Wedge: Preceding downtrend confirmed.");
                 // Check for RSI divergence
                 if(CheckRSIDivergence(low, lower_fractal_indices[0], lower_fractal_indices[2], BULLISH_DIVERGENCE))
                 {
+                    Print("Descending Broadening Wedge: RSI divergence confirmed.");
                     Print("Descending Broadening Wedge confirmed.");
                     breakoutPrice = upper_fractals[0];
                     breakdownPrice = lower_fractals[0];
@@ -825,11 +939,15 @@ int IsDescendingBroadeningWedge(const double &high[], const double &low[],
                 }
                 else
                 {
+                    Print("Descending Broadening Wedge: RSI divergence not confirmed.");
                     return 2; // Bearish breakout
                 }
             }
+             else { Print("Descending Broadening Wedge: Preceding downtrend not confirmed."); }
         }
+         else { Print("Descending Broadening Wedge: Diverging trendlines not found."); }
     }
+     else { Print("Descending Broadening Wedge: Lower highs and lower lows not found."); }
 
     return 0;
 }
@@ -870,27 +988,34 @@ int IsAscendingBroadeningWedge(const double &high[], const double &low[],
     }
 
     if(upper_fractal_count < 3 || lower_fractal_count < 3)
+    {
+        Print("Ascending Broadening Wedge: Not enough fractals.");
         return 0;
+    }
 
     // Check for higher highs and higher lows
     if(upper_fractals[0] > upper_fractals[1] && upper_fractals[1] > upper_fractals[2] &&
        low[lower_fractal_indices[0]] > low[lower_fractal_indices[1]] && low[lower_fractal_indices[1]] > low[lower_fractal_indices[2]])
     {
+        Print("Ascending Broadening Wedge: Higher highs and higher lows found.");
         // Check for divergence
         double upper_slope = (upper_fractals[0] - upper_fractals[2]) / (upper_fractal_indices[0] - upper_fractal_indices[2]);
         double lower_slope = (lower_fractals[0] - lower_fractals[2]) / (lower_fractal_indices[0] - lower_fractal_indices[2]);
 
         if(upper_slope > 0 && lower_slope > 0 && upper_slope > lower_slope)
         {
+            Print("Ascending Broadening Wedge: Diverging trendlines found.");
             // Confirm preceding uptrend
             int wedge_start_index = upper_fractal_indices[2];
             double price_at_wedge_start = low[wedge_start_index];
             double price_before_wedge = low[wedge_start_index + 20]; // 20 bars before wedge
             if(price_at_wedge_start - price_before_wedge > scaled_UptrendMinHeight * _Point)
             {
+                Print("Ascending Broadening Wedge: Preceding uptrend confirmed.");
                 // Check for RSI divergence
                 if(CheckRSIDivergence(high, upper_fractal_indices[0], upper_fractal_indices[2], BEARISH_DIVERGENCE))
                 {
+                    Print("Ascending Broadening Wedge: RSI divergence confirmed.");
                     Print("Ascending Broadening Wedge confirmed.");
                     breakdownPrice = lower_fractals[0];
                     breakoutPrice = upper_fractals[0];
@@ -900,11 +1025,15 @@ int IsAscendingBroadeningWedge(const double &high[], const double &low[],
                 }
                 else
                 {
+                    Print("Ascending Broadening Wedge: RSI divergence not confirmed.");
                     return 2; // Bullish breakout
                 }
             }
+             else { Print("Ascending Broadening Wedge: Preceding uptrend not confirmed."); }
         }
+         else { Print("Ascending Broadening Wedge: Diverging trendlines not found."); }
     }
+     else { Print("Ascending Broadening Wedge: Higher highs and higher lows not found."); }
 
     return 0;
 }
@@ -1069,7 +1198,10 @@ bool IsBullishRectangle(const double &high[], const double &low[],
     }
 
     if(upper_fractal_count < 2 || lower_fractal_count < 2)
+    {
+        Print("Bullish Rectangle: Not enough fractals.");
         return false;
+    }
 
     // Check for horizontal trendlines
     double upper_level = (upper_fractals[0] + upper_fractals[1]) / 2;
@@ -1079,27 +1211,35 @@ bool IsBullishRectangle(const double &high[], const double &low[],
     if(MathAbs(upper_fractals[0] - upper_level) < tolerance && MathAbs(upper_fractals[1] - upper_level) < tolerance &&
        MathAbs(lower_fractals[0] - lower_level) < tolerance && MathAbs(lower_fractals[1] - lower_level) < tolerance)
     {
+        Print("Bullish Rectangle: Horizontal trendlines found.");
         // Check duration
         int duration = MathAbs(upper_fractal_indices[0] - lower_fractal_indices[0]);
         if(duration >= RectangleMinDuration && duration <= RectangleMaxDuration)
         {
+            Print("Bullish Rectangle: Duration confirmed.");
             // Confirm preceding uptrend
             int rectangle_start_index = MathMax(upper_fractal_indices[1], lower_fractal_indices[1]);
             double price_at_rectangle_start = low[rectangle_start_index];
             double price_before_rectangle = low[rectangle_start_index + 20]; // 20 bars before rectangle
             if(price_at_rectangle_start - price_before_rectangle > scaled_UptrendMinHeight * _Point)
             {
-            if(CheckMACDConfirmation(BULLISH_CROSS))
-            {
-                Print("Bullish Rectangle confirmed.");
-                breakoutPrice = upper_level;
-                stopLoss = lower_level - StopLossPips * _Point;
-                takeProfit = breakoutPrice + (upper_level - lower_level);
-                return true;
+                Print("Bullish Rectangle: Preceding uptrend confirmed.");
+                if(CheckMACDConfirmation(BULLISH_CROSS))
+                {
+                    Print("Bullish Rectangle: MACD confirmed.");
+                    Print("Bullish Rectangle confirmed.");
+                    breakoutPrice = upper_level;
+                    stopLoss = lower_level - StopLossPips * _Point;
+                    takeProfit = breakoutPrice + (upper_level - lower_level);
+                    return true;
+                }
+                 else { Print("Bullish Rectangle: MACD not confirmed."); }
             }
-            }
+             else { Print("Bullish Rectangle: Preceding uptrend not confirmed."); }
         }
+         else { Print("Bullish Rectangle: Duration not confirmed."); }
     }
+     else { Print("Bullish Rectangle: Horizontal trendlines not found."); }
 
     return false;
 }
@@ -1140,7 +1280,10 @@ bool IsBearishRectangle(const double &high[], const double &low[],
     }
 
     if(upper_fractal_count < 2 || lower_fractal_count < 2)
+    {
+        Print("Bearish Rectangle: Not enough fractals.");
         return false;
+    }
 
     // Check for horizontal trendlines
     double upper_level = (upper_fractals[0] + upper_fractals[1]) / 2;
@@ -1150,27 +1293,35 @@ bool IsBearishRectangle(const double &high[], const double &low[],
     if(MathAbs(upper_fractals[0] - upper_level) < tolerance && MathAbs(upper_fractals[1] - upper_level) < tolerance &&
        MathAbs(lower_fractals[0] - lower_level) < tolerance && MathAbs(lower_fractals[1] - lower_level) < tolerance)
     {
+        Print("Bearish Rectangle: Horizontal trendlines found.");
         // Check duration
         int duration = MathAbs(upper_fractal_indices[0] - lower_fractal_indices[0]);
         if(duration >= RectangleMinDuration && duration <= RectangleMaxDuration)
         {
+            Print("Bearish Rectangle: Duration confirmed.");
             // Confirm preceding downtrend
             int rectangle_start_index = MathMax(upper_fractal_indices[1], lower_fractal_indices[1]);
             double price_at_rectangle_start = high[rectangle_start_index];
             double price_before_rectangle = high[rectangle_start_index + 20]; // 20 bars before rectangle
             if(price_before_rectangle - price_at_rectangle_start > scaled_DowntrendMinHeight * _Point)
             {
-            if(CheckMACDConfirmation(BEARISH_CROSS))
-            {
-                Print("Bearish Rectangle confirmed.");
-                breakdownPrice = lower_level;
-                stopLoss = upper_level + StopLossPips * _Point;
-                takeProfit = breakdownPrice - (upper_level - lower_level);
-                return true;
+                Print("Bearish Rectangle: Preceding downtrend confirmed.");
+                if(CheckMACDConfirmation(BEARISH_CROSS))
+                {
+                    Print("Bearish Rectangle: MACD confirmed.");
+                    Print("Bearish Rectangle confirmed.");
+                    breakdownPrice = lower_level;
+                    stopLoss = upper_level + StopLossPips * _Point;
+                    takeProfit = breakdownPrice - (upper_level - lower_level);
+                    return true;
+                }
+                 else { Print("Bearish Rectangle: MACD not confirmed."); }
             }
-            }
+             else { Print("Bearish Rectangle: Preceding downtrend not confirmed."); }
         }
+         else { Print("Bearish Rectangle: Duration not confirmed."); }
     }
+     else { Print("Bearish Rectangle: Horizontal trendlines not found."); }
 
     return false;
 }
@@ -1202,7 +1353,14 @@ bool IsBullishFlag(const double &high[], const double &low[], const long &volume
     }
 
     if(flagpoleStartIndex == -1)
+    {
+        Print("Bullish Flag: Flagpole not found.");
         return false;
+    }
+    else
+    {
+        Print("Bullish Flag: Flagpole found at index ", flagpoleStartIndex);
+    }
 
     // 2. Find the Flag
     int flagStartShift = flagpoleStartIndex - 10;
@@ -1235,7 +1393,10 @@ bool IsBullishFlag(const double &high[], const double &low[], const long &volume
     }
 
     if(upper_fractal_count < 2 || lower_fractal_count < 2)
+    {
+        Print("Bullish Flag: Not enough fractals.");
         return false;
+    }
 
     // Check for downward sloping channel
     double upper_slope = (upper_fractals[0] - upper_fractals[1]) / (upper_fractal_indices[0] - upper_fractal_indices[1]);
@@ -1243,10 +1404,15 @@ bool IsBullishFlag(const double &high[], const double &low[], const long &volume
 
     if(upper_slope < 0 && lower_slope < 0 && MathAbs(upper_slope - lower_slope) < 0.1)
     {
+        Print("Bullish Flag: Downward sloping channel found.");
         // Check duration
         int duration = MathAbs(upper_fractal_indices[0] - lower_fractal_indices[0]);
         if(duration > FlagMaxDuration)
+        {
+            Print("Bullish Flag: Duration check failed.");
             return false;
+        }
+        Print("Bullish Flag: Duration confirmed.");
 
         // 3. Volume Confirmation
         long flagpoleVolume = 0;
@@ -1259,6 +1425,7 @@ bool IsBullishFlag(const double &high[], const double &low[], const long &volume
 
         if(flagpoleVolume > flagVolume)
         {
+            Print("Bullish Flag: Volume confirmed.");
             // RSI Confirmation
             double rsi_buffer[];
             CopyBuffer(rsi_handle, 0, 0, RsiDivergenceLookback, rsi_buffer);
@@ -1272,6 +1439,7 @@ bool IsBullishFlag(const double &high[], const double &low[], const long &volume
                         // MACD Confirmation
                         if(CheckMACDConfirmation(BULLISH_CROSS))
                         {
+                            Print("Bullish Flag: MACD confirmed.");
                             breakoutPrice = upper_fractals[0];
                             stopLoss = lower_fractals[0] - StopLossPips * _Point;
                             takeProfit = breakoutPrice + (flagpoleHigh - flagpoleLow);
@@ -1281,7 +1449,9 @@ bool IsBullishFlag(const double &high[], const double &low[], const long &volume
                 }
             }
         }
+         else { Print("Bullish Flag: Volume not confirmed."); }
     }
+     else { Print("Bullish Flag: Downward sloping channel not found."); }
 
     return false;
 }
@@ -1307,6 +1477,7 @@ void OnTick()
     // --- Pattern Detection ---
     if(PatternToTrade == BULLISH_PENNANT || PatternToTrade == ALL)
     {
+        Print("OnTick: Analyzing for Bullish Pennant...");
         int flagpoleStartIndex = -1;
         double flagpoleHigh = 0, flagpoleLow = 0;
         int flagpoleBars = 0;
@@ -1327,6 +1498,7 @@ void OnTick()
 
     if(PatternToTrade == BEARISH_PENNANT || PatternToTrade == ALL)
     {
+        Print("OnTick: Analyzing for Bearish Pennant...");
         int flagpoleStartIndex = -1;
         double flagpoleHigh = 0, flagpoleLow = 0;
         int flagpoleBars = 0;
@@ -1347,6 +1519,7 @@ void OnTick()
 
     if(PatternToTrade == DESCENDING_BROADENING_WEDGE || PatternToTrade == ALL)
     {
+        Print("OnTick: Analyzing for Descending Broadening Wedge...");
         double breakoutPrice = 0, breakdownPrice = 0, stopLoss = 0, takeProfit = 0;
         int breakout_type = IsDescendingBroadeningWedge(high, low, breakoutPrice, breakdownPrice, stopLoss, takeProfit);
 
@@ -1368,6 +1541,7 @@ void OnTick()
 
     if(PatternToTrade == ASCENDING_BROADENING_WEDGE || PatternToTrade == ALL)
     {
+        Print("OnTick: Analyzing for Ascending Broadening Wedge...");
         double breakdownPrice = 0, breakoutPrice = 0, stopLoss = 0, takeProfit = 0;
         int breakout_type = IsAscendingBroadeningWedge(high, low, breakdownPrice, breakoutPrice, stopLoss, takeProfit);
 
@@ -1389,6 +1563,7 @@ void OnTick()
 
     if(PatternToTrade == BULLISH_RECTANGLE || PatternToTrade == ALL)
     {
+        Print("OnTick: Analyzing for Bullish Rectangle...");
         double breakoutPrice = 0, stopLoss = 0, takeProfit = 0;
         if(IsBullishRectangle(high, low, breakoutPrice, stopLoss, takeProfit))
         {
@@ -1401,6 +1576,7 @@ void OnTick()
 
     if(PatternToTrade == BEARISH_RECTANGLE || PatternToTrade == ALL)
     {
+        Print("OnTick: Analyzing for Bearish Rectangle...");
         double breakdownPrice = 0, stopLoss = 0, takeProfit = 0;
         if(IsBearishRectangle(high, low, breakdownPrice, stopLoss, takeProfit))
         {
@@ -1413,6 +1589,7 @@ void OnTick()
 
     if(PatternToTrade == BULLISH_FLAG || PatternToTrade == ALL)
     {
+        Print("OnTick: Analyzing for Bullish Flag...");
         double breakoutPrice = 0, stopLoss = 0, takeProfit = 0;
         if(IsBullishFlag(high, low, volume, breakoutPrice, stopLoss, takeProfit))
         {
@@ -1425,6 +1602,7 @@ void OnTick()
 
     if(PatternToTrade == BEARISH_FLAG || PatternToTrade == ALL)
     {
+        Print("OnTick: Analyzing for Bearish Flag...");
         double breakdownPrice = 0, stopLoss = 0, takeProfit = 0;
         if(IsBearishFlag(high, low, volume, breakdownPrice, stopLoss, takeProfit))
         {
@@ -1437,6 +1615,7 @@ void OnTick()
 
     if(PatternToTrade == HEAD_AND_SHOULDERS || PatternToTrade == ALL)
     {
+        Print("OnTick: Analyzing for Head and Shoulders...");
         double breakdownPrice = 0, stopLoss = 0, takeProfit = 0;
         if(IsHeadAndShoulders(high, low, volume, breakdownPrice, stopLoss, takeProfit))
         {
@@ -1449,6 +1628,7 @@ void OnTick()
 
     if(PatternToTrade == INVERTED_HEAD_AND_SHOULDERS || PatternToTrade == ALL)
     {
+        Print("OnTick: Analyzing for Inverted Head and Shoulders...");
         double breakoutPrice = 0, stopLoss = 0, takeProfit = 0;
         if(IsInvertedHeadAndShoulders(high, low, volume, breakoutPrice, stopLoss, takeProfit))
         {
@@ -1461,6 +1641,7 @@ void OnTick()
 
     if(PatternToTrade == FALLING_WEDGE || PatternToTrade == ALL)
     {
+        Print("OnTick: Analyzing for Falling Wedge...");
         double breakoutPrice = 0, stopLoss = 0, takeProfit = 0;
         if(IsFallingWedge(high, low, volume, breakoutPrice, stopLoss, takeProfit))
         {
