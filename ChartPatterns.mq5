@@ -24,6 +24,7 @@ enum ENUM_PATTERN_TO_TRADE
    BEARISH_FLAG,
    HEAD_AND_SHOULDERS,
    INVERTED_HEAD_AND_SHOULDERS,
+   FALLING_WEDGE,
    ALL
   };
 
@@ -233,6 +234,76 @@ bool IsBullishPennant(const double &high[], const double &low[], const long &vol
                     pennantLow = lowFractal1;
                     pennantLowIndex = lowFractalIndex1;
                     breakoutPrice = upFractal1;
+                    return true;
+                }
+            }
+        }
+    }
+
+    return false;
+}
+//+------------------------------------------------------------------+
+//| Falling Wedge Detection                                          |
+//+------------------------------------------------------------------+
+bool IsFallingWedge(const double &high[], const double &low[], const long &volume[],
+                    double &breakoutPrice, double &stopLoss, double &takeProfit)
+{
+    Print("Analyzing for Falling Wedge...");
+    // Find at least 3 lower highs and 3 lower lows
+    double upper_fractals[], lower_fractals[];
+    int upper_fractal_indices[], lower_fractal_indices[];
+    int upper_fractal_count = 0, lower_fractal_count = 0;
+
+    double upper_fractals_buffer[], lower_fractals_buffer[];
+    CopyBuffer(fractals_handle, 0, 0, LookbackBars, upper_fractals_buffer);
+    CopyBuffer(fractals_handle, 1, 0, LookbackBars, lower_fractals_buffer);
+
+    for(int i = 0; i < LookbackBars; i++)
+    {
+        if(upper_fractals_buffer[i] > 0)
+        {
+            ArrayResize(upper_fractals, upper_fractal_count + 1);
+            ArrayResize(upper_fractal_indices, upper_fractal_count + 1);
+            upper_fractals[upper_fractal_count] = upper_fractals_buffer[i];
+            upper_fractal_indices[upper_fractal_count] = i;
+            upper_fractal_count++;
+        }
+        if(lower_fractals_buffer[i] > 0)
+        {
+            ArrayResize(lower_fractals, lower_fractal_count + 1);
+            ArrayResize(lower_fractal_indices, lower_fractal_count + 1);
+            lower_fractals[lower_fractal_count] = lower_fractals_buffer[i];
+            lower_fractal_indices[lower_fractal_count] = i;
+            lower_fractal_count++;
+        }
+    }
+
+    if(upper_fractal_count < 3 || lower_fractal_count < 3)
+        return false;
+
+    // Check for lower highs and lower lows
+    if(upper_fractals[0] < upper_fractals[1] && upper_fractals[1] < upper_fractals[2] &&
+       low[lower_fractal_indices[0]] < low[lower_fractal_indices[1]] && low[lower_fractal_indices[1]] < low[lower_fractal_indices[2]])
+    {
+        // Check for converging trendlines
+        double upper_slope = (upper_fractals[0] - upper_fractals[2]) / (upper_fractal_indices[0] - upper_fractal_indices[2]);
+        double lower_slope = (low[lower_fractal_indices[0]] - low[lower_fractal_indices[2]]) / (lower_fractal_indices[0] - lower_fractal_indices[2]);
+
+        if(upper_slope < 0 && lower_slope < 0 && upper_slope < lower_slope)
+        {
+            // Volume Confirmation
+            long wedgeVolume = 0;
+            for(int i = upper_fractal_indices[2]; i > 1; i--)
+                wedgeVolume += volume[i];
+
+            if(volume[1] > wedgeVolume / (upper_fractal_indices[2] - 1))
+            {
+                // RSI Divergence Confirmation
+                if(CheckRSIDivergence(low, lower_fractal_indices[0], lower_fractal_indices[2], BULLISH_DIVERGENCE))
+                {
+                    breakoutPrice = upper_fractals[0];
+                    stopLoss = lower_fractals[0] - StopLossPips * _Point;
+                    takeProfit = breakoutPrice + (upper_fractals[2] - low[lower_fractal_indices[2]]);
                     return true;
                 }
             }
@@ -1019,6 +1090,18 @@ void ManageTrailingStop()
             if(close[1] > breakoutPrice)
             {
                 ExecuteTrade(ORDER_TYPE_BUY, stopLoss, "Inverted Head and Shoulders");
+            }
+        }
+    }
+
+    if(PatternToTrade == FALLING_WEDGE || PatternToTrade == ALL)
+    {
+        double breakoutPrice = 0, stopLoss = 0, takeProfit = 0;
+        if(IsFallingWedge(high, low, volume, breakoutPrice, stopLoss, takeProfit))
+        {
+            if(close[1] > breakoutPrice)
+            {
+                ExecuteTrade(ORDER_TYPE_BUY, stopLoss, "Falling Wedge");
             }
         }
     }
