@@ -785,10 +785,14 @@ bool IsBearishRectangle(const double &high[], const double &low[],
             double price_before_rectangle = high[rectangle_start_index + 20]; // 20 bars before rectangle
             if(price_before_rectangle - price_at_rectangle_start > scaled_DowntrendMinHeight * _Point)
             {
+            if(CheckMACDConfirmation(BEARISH_CROSS))
+            {
+                Print("Bearish Rectangle confirmed.");
                 breakdownPrice = lower_level;
                 stopLoss = upper_level + StopLossPips * _Point;
                 takeProfit = breakdownPrice - (upper_level - lower_level);
                 return true;
+            }
             }
         }
     }
