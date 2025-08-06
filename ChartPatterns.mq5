@@ -73,7 +73,7 @@ void ScaleParametersByTimeframe()
     scaled_DowntrendMinHeight = DowntrendMinHeight;
     scaled_UptrendMinHeight = UptrendMinHeight;
 
-    switch(_Period)
+    switch((int)_Period)
     {
         case PERIOD_M1:
             scaled_FlagpoleMinHeight /= 4;
@@ -1024,189 +1024,10 @@ void ManageTrailingStop()
                                 tp2_price = PositionGetDouble(POSITION_PRICE_OPEN) - TP2_Pips * _Point;
 
                             if(PositionGetDouble(POSITION_SL) < tp2_price)
-                                trade.PositionModify(PositionGetInteger(POSITION_TICKET), tp2_price + TrailingStopPlusPips * _Point, PositionGetDouble(POSITION_TP));
+                                trade.PositionModify(ticket, tp2_price + TrailingStopPlusPips * _Point, PositionGetDouble(POSITION_TP));
                         }
                     }
                 }
-            }
-        }
-    }
-
-    // No data - no work
-    if(rates_total < 1)
-        return;
-
-    // We use a static variable to ensure the expert only runs once per bar.
-    static datetime lastBarTime = 0;
-    if(lastBarTime == Time[0])
-        return;
-    lastBarTime = Time[0];
-
-    ManageTrailingStop();
-
-    // --- Pattern Detection ---
-    if(PatternToTrade == BULLISH_PENNANT || PatternToTrade == ALL)
-    {
-        int flagpoleStartIndex = -1;
-        double flagpoleHigh = 0, flagpoleLow = 0;
-        int flagpoleBars = 0;
-        double pennantLow = 0;
-        int pennantLowIndex = 0;
-        double breakoutPrice = 0;
-
-        if(IsBullishPennant(High, Low, TickVolume, flagpoleStartIndex, flagpoleHigh, flagpoleLow, flagpoleBars, pennantLow, pennantLowIndex, breakoutPrice))
-        {
-            // Breakout check
-            if(Close[1] > breakoutPrice)
-            {
-                double sl = pennantLow - StopLossPips * _Point;
-                ExecuteTrade(ORDER_TYPE_BUY, sl, "Bullish Pennant");
-            }
-        }
-    }
-
-    if(PatternToTrade == BEARISH_PENNANT || PatternToTrade == ALL)
-    {
-        int flagpoleStartIndex = -1;
-        double flagpoleHigh = 0, flagpoleLow = 0;
-        int flagpoleBars = 0;
-        double pennantHigh = 0;
-        int pennantHighIndex = 0;
-        double breakdownPrice = 0;
-
-        if(IsBearishPennant(High, Low, TickVolume, flagpoleStartIndex, flagpoleHigh, flagpoleLow, flagpoleBars, pennantHigh, pennantHighIndex, breakdownPrice))
-        {
-            // Breakdown check
-            if(Close[1] < breakdownPrice)
-            {
-                double sl = pennantHigh + StopLossPips * _Point;
-                ExecuteTrade(ORDER_TYPE_SELL, sl, "Bearish Pennant");
-            }
-        }
-    }
-
-    if(PatternToTrade == DESCENDING_BROADENING_WEDGE || PatternToTrade == ALL)
-    {
-        double breakoutPrice = 0, breakdownPrice = 0, stopLoss = 0, takeProfit = 0;
-        int breakout_type = IsDescendingBroadeningWedge(High, Low, breakoutPrice, breakdownPrice, stopLoss, takeProfit);
-
-        if(breakout_type == 1) // Bullish breakout
-        {
-            if(Close[1] > breakoutPrice)
-            {
-                ExecuteTrade(ORDER_TYPE_BUY, stopLoss, "Descending Broadening Wedge");
-            }
-        }
-        else if(breakout_type == 1 && TradeFailedWedgeBreakouts) // Bearish breakout
-        {
-            if(Close[1] < breakdownPrice)
-            {
-                ExecuteTrade(ORDER_TYPE_SELL, stopLoss, "Descending Wedge Failed Breakout");
-            }
-        }
-    }
-
-    if(PatternToTrade == ASCENDING_BROADENING_WEDGE || PatternToTrade == ALL)
-    {
-        double breakdownPrice = 0, breakoutPrice = 0, stopLoss = 0, takeProfit = 0;
-        int breakout_type = IsAscendingBroadeningWedge(High, Low, breakdownPrice, breakoutPrice, stopLoss, takeProfit);
-
-        if(breakout_type == 1) // Bearish breakout
-        {
-            if(Close[1] < breakdownPrice)
-            {
-                ExecuteTrade(ORDER_TYPE_SELL, stopLoss, "Ascending Broadening Wedge");
-            }
-        }
-        else if(breakout_type == 1 && TradeFailedWedgeBreakouts) // Bullish breakout
-        {
-            if(Close[1] > breakoutPrice)
-            {
-                ExecuteTrade(ORDER_TYPE_BUY, stopLoss, "Ascending Wedge Failed Breakout");
-            }
-        }
-    }
-
-    if(PatternToTrade == BULLISH_RECTANGLE || PatternToTrade == ALL)
-    {
-        double breakoutPrice = 0, stopLoss = 0, takeProfit = 0;
-        if(IsBullishRectangle(High, Low, breakoutPrice, stopLoss, takeProfit))
-        {
-            if(Close[1] > breakoutPrice)
-            {
-                ExecuteTrade(ORDER_TYPE_BUY, stopLoss, "Bullish Rectangle");
-            }
-        }
-    }
-
-    if(PatternToTrade == BEARISH_RECTANGLE || PatternToTrade == ALL)
-    {
-        double breakdownPrice = 0, stopLoss = 0, takeProfit = 0;
-        if(IsBearishRectangle(High, Low, breakdownPrice, stopLoss, takeProfit))
-        {
-            if(Close[1] < breakdownPrice)
-            {
-                ExecuteTrade(ORDER_TYPE_SELL, stopLoss, "Bearish Rectangle");
-            }
-        }
-    }
-
-    if(PatternToTrade == BULLISH_FLAG || PatternToTrade == ALL)
-    {
-        double breakoutPrice = 0, stopLoss = 0, takeProfit = 0;
-        if(IsBullishFlag(High, Low, TickVolume, breakoutPrice, stopLoss, takeProfit))
-        {
-            if(Close[1] > breakoutPrice)
-            {
-                ExecuteTrade(ORDER_TYPE_BUY, stopLoss, "Bullish Flag");
-            }
-        }
-    }
-
-    if(PatternToTrade == BEARISH_FLAG || PatternToTrade == ALL)
-    {
-        double breakdownPrice = 0, stopLoss = 0, takeProfit = 0;
-        if(IsBearishFlag(High, Low, TickVolume, breakdownPrice, stopLoss, takeProfit))
-        {
-            if(Close[1] < breakdownPrice)
-            {
-                ExecuteTrade(ORDER_TYPE_SELL, stopLoss, "Bearish Flag");
-            }
-        }
-    }
-
-    if(PatternToTrade == HEAD_AND_SHOULDERS || PatternToTrade == ALL)
-    {
-        double breakdownPrice = 0, stopLoss = 0, takeProfit = 0;
-        if(IsHeadAndShoulders(High, Low, TickVolume, breakdownPrice, stopLoss, takeProfit))
-        {
-            if(Close[1] < breakdownPrice)
-            {
-                ExecuteTrade(ORDER_TYPE_SELL, stopLoss, "Head and Shoulders");
-            }
-        }
-    }
-
-    if(PatternToTrade == INVERTED_HEAD_AND_SHOULDERS || PatternToTrade == ALL)
-    {
-        double breakoutPrice = 0, stopLoss = 0, takeProfit = 0;
-        if(IsInvertedHeadAndShoulders(High, Low, TickVolume, breakoutPrice, stopLoss, takeProfit))
-        {
-            if(Close[1] > breakoutPrice)
-            {
-                ExecuteTrade(ORDER_TYPE_BUY, stopLoss, "Inverted Head and Shoulders");
-            }
-        }
-    }
-
-    if(PatternToTrade == FALLING_WEDGE || PatternToTrade == ALL)
-    {
-        double breakoutPrice = 0, stopLoss = 0, takeProfit = 0;
-        if(IsFallingWedge(High, Low, TickVolume, breakoutPrice, stopLoss, takeProfit))
-        {
-            if(Close[1] > breakoutPrice)
-            {
-                ExecuteTrade(ORDER_TYPE_BUY, stopLoss, "Falling Wedge");
             }
         }
     }
@@ -1471,9 +1292,9 @@ void OnTick()
 {
     // We use a static variable to ensure the expert only runs once per bar.
     static datetime lastBarTime = 0;
-    if(lastBarTime == TimeCurrent())
+    if(lastBarTime == iTime(_Symbol, _Period, 0))
         return;
-    lastBarTime = TimeCurrent();
+    lastBarTime = iTime(_Symbol, _Period, 0);
 
     ManageTrailingStop();
     // Get historical data
@@ -1483,7 +1304,6 @@ void OnTick()
     if(!GetHistory(LookbackBars, high, low, close, time, volume))
         return;
 
-    // --- Pattern Detection ---
     // --- Pattern Detection ---
     if(PatternToTrade == BULLISH_PENNANT || PatternToTrade == ALL)
     {
@@ -1528,18 +1348,18 @@ void OnTick()
     if(PatternToTrade == DESCENDING_BROADENING_WEDGE || PatternToTrade == ALL)
     {
         double breakoutPrice = 0, breakdownPrice = 0, stopLoss = 0, takeProfit = 0;
-        int breakout_type = IsDescendingBroadeningWedge(High, Low, breakoutPrice, breakdownPrice, stopLoss, takeProfit);
+        int breakout_type = IsDescendingBroadeningWedge(high, low, breakoutPrice, breakdownPrice, stopLoss, takeProfit);
 
         if(breakout_type == 1) // Bullish breakout
         {
-            if(Close[1] > breakoutPrice)
+            if(close[1] > breakoutPrice)
             {
                 ExecuteTrade(ORDER_TYPE_BUY, stopLoss, "Descending Broadening Wedge");
             }
         }
         else if(breakout_type == 2 && TradeFailedWedgeBreakouts) // Bearish breakout
         {
-            if(Close[1] < breakdownPrice)
+            if(close[1] < breakdownPrice)
             {
                 ExecuteTrade(ORDER_TYPE_SELL, stopLoss, "Descending Wedge Failed Breakout");
             }
@@ -1549,20 +1369,104 @@ void OnTick()
     if(PatternToTrade == ASCENDING_BROADENING_WEDGE || PatternToTrade == ALL)
     {
         double breakdownPrice = 0, breakoutPrice = 0, stopLoss = 0, takeProfit = 0;
-        int breakout_type = IsAscendingBroadeningWedge(High, Low, breakdownPrice, breakoutPrice, stopLoss, takeProfit);
+        int breakout_type = IsAscendingBroadeningWedge(high, low, breakdownPrice, breakoutPrice, stopLoss, takeProfit);
 
         if(breakout_type == 1) // Bearish breakout
         {
-            if(Close[1] < breakdownPrice)
+            if(close[1] < breakdownPrice)
             {
                 ExecuteTrade(ORDER_TYPE_SELL, stopLoss, "Ascending Broadening Wedge");
             }
         }
         else if(breakout_type == 2 && TradeFailedWedgeBreakouts) // Bullish breakout
         {
-            if(Close[1] > breakoutPrice)
+            if(close[1] > breakoutPrice)
             {
                 ExecuteTrade(ORDER_TYPE_BUY, stopLoss, "Ascending Wedge Failed Breakout");
+            }
+        }
+    }
+
+    if(PatternToTrade == BULLISH_RECTANGLE || PatternToTrade == ALL)
+    {
+        double breakoutPrice = 0, stopLoss = 0, takeProfit = 0;
+        if(IsBullishRectangle(high, low, breakoutPrice, stopLoss, takeProfit))
+        {
+            if(close[1] > breakoutPrice)
+            {
+                ExecuteTrade(ORDER_TYPE_BUY, stopLoss, "Bullish Rectangle");
+            }
+        }
+    }
+
+    if(PatternToTrade == BEARISH_RECTANGLE || PatternToTrade == ALL)
+    {
+        double breakdownPrice = 0, stopLoss = 0, takeProfit = 0;
+        if(IsBearishRectangle(high, low, breakdownPrice, stopLoss, takeProfit))
+        {
+            if(close[1] < breakdownPrice)
+            {
+                ExecuteTrade(ORDER_TYPE_SELL, stopLoss, "Bearish Rectangle");
+            }
+        }
+    }
+
+    if(PatternToTrade == BULLISH_FLAG || PatternToTrade == ALL)
+    {
+        double breakoutPrice = 0, stopLoss = 0, takeProfit = 0;
+        if(IsBullishFlag(high, low, volume, breakoutPrice, stopLoss, takeProfit))
+        {
+            if(close[1] > breakoutPrice)
+            {
+                ExecuteTrade(ORDER_TYPE_BUY, stopLoss, "Bullish Flag");
+            }
+        }
+    }
+
+    if(PatternToTrade == BEARISH_FLAG || PatternToTrade == ALL)
+    {
+        double breakdownPrice = 0, stopLoss = 0, takeProfit = 0;
+        if(IsBearishFlag(high, low, volume, breakdownPrice, stopLoss, takeProfit))
+        {
+            if(close[1] < breakdownPrice)
+            {
+                ExecuteTrade(ORDER_TYPE_SELL, stopLoss, "Bearish Flag");
+            }
+        }
+    }
+
+    if(PatternToTrade == HEAD_AND_SHOULDERS || PatternToTrade == ALL)
+    {
+        double breakdownPrice = 0, stopLoss = 0, takeProfit = 0;
+        if(IsHeadAndShoulders(high, low, volume, breakdownPrice, stopLoss, takeProfit))
+        {
+            if(close[1] < breakdownPrice)
+            {
+                ExecuteTrade(ORDER_TYPE_SELL, stopLoss, "Head and Shoulders");
+            }
+        }
+    }
+
+    if(PatternToTrade == INVERTED_HEAD_AND_SHOULDERS || PatternToTrade == ALL)
+    {
+        double breakoutPrice = 0, stopLoss = 0, takeProfit = 0;
+        if(IsInvertedHeadAndShoulders(high, low, volume, breakoutPrice, stopLoss, takeProfit))
+        {
+            if(close[1] > breakoutPrice)
+            {
+                ExecuteTrade(ORDER_TYPE_BUY, stopLoss, "Inverted Head and Shoulders");
+            }
+        }
+    }
+
+    if(PatternToTrade == FALLING_WEDGE || PatternToTrade == ALL)
+    {
+        double breakoutPrice = 0, stopLoss = 0, takeProfit = 0;
+        if(IsFallingWedge(high, low, volume, breakoutPrice, stopLoss, takeProfit))
+        {
+            if(close[1] > breakoutPrice)
+            {
+                ExecuteTrade(ORDER_TYPE_BUY, stopLoss, "Falling Wedge");
             }
         }
     }
