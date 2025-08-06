@@ -610,7 +610,7 @@ void ManageTrailingStop()
                                 tp1_price = PositionGetDouble(POSITION_PRICE_OPEN) - TP1_Pips * _Point;
 
                             if(PositionGetDouble(POSITION_SL) < tp1_price)
-                                trade.PositionModify(PositionGetTicket(), tp1_price + TrailingStopPlusPips * _Point, PositionGetDouble(POSITION_TP));
+                                trade.PositionModify(PositionGetInteger(POSITION_TICKET), tp1_price + TrailingStopPlusPips * _Point, PositionGetDouble(POSITION_TP));
                         }
                         else if(StringFind(comment, "TP3") != -1)
                         {
@@ -621,7 +621,7 @@ void ManageTrailingStop()
                                 tp2_price = PositionGetDouble(POSITION_PRICE_OPEN) - TP2_Pips * _Point;
 
                             if(PositionGetDouble(POSITION_SL) < tp2_price)
-                                trade.PositionModify(PositionGetTicket(), tp2_price + TrailingStopPlusPips * _Point, PositionGetDouble(POSITION_TP));
+                                trade.PositionModify(PositionGetInteger(POSITION_TICKET), tp2_price + TrailingStopPlusPips * _Point, PositionGetDouble(POSITION_TP));
                         }
                     }
                 }
