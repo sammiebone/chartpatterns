@@ -775,16 +775,21 @@ bool IsBearishRectangle(const double &high[], const double &low[],
     if(MathAbs(upper_fractals[0] - upper_level) < tolerance && MathAbs(upper_fractals[1] - upper_level) < tolerance &&
        MathAbs(lower_fractals[0] - lower_level) < tolerance && MathAbs(lower_fractals[1] - lower_level) < tolerance)
     {
-        // Confirm preceding downtrend
-        int rectangle_start_index = MathMax(upper_fractal_indices[1], lower_fractal_indices[1]);
-        double price_at_rectangle_start = high[rectangle_start_index];
-        double price_before_rectangle = high[rectangle_start_index + 20]; // 20 bars before rectangle
-        if(price_before_rectangle - price_at_rectangle_start > scaled_DowntrendMinHeight * _Point)
+        // Check duration
+        int duration = MathAbs(upper_fractal_indices[0] - lower_fractal_indices[0]);
+        if(duration >= RectangleMinDuration && duration <= RectangleMaxDuration)
         {
-            breakdownPrice = lower_level;
-            stopLoss = upper_level + StopLossPips * _Point;
-            takeProfit = breakdownPrice - (upper_level - lower_level);
-            return true;
+            // Confirm preceding downtrend
+            int rectangle_start_index = MathMax(upper_fractal_indices[1], lower_fractal_indices[1]);
+            double price_at_rectangle_start = high[rectangle_start_index];
+            double price_before_rectangle = high[rectangle_start_index + 20]; // 20 bars before rectangle
+            if(price_before_rectangle - price_at_rectangle_start > scaled_DowntrendMinHeight * _Point)
+            {
+                breakdownPrice = lower_level;
+                stopLoss = upper_level + StopLossPips * _Point;
+                takeProfit = breakdownPrice - (upper_level - lower_level);
+                return true;
+            }
         }
     }
 
