@@ -23,6 +23,7 @@ enum ENUM_PATTERN_TO_TRADE
    BULLISH_FLAG,
    BEARISH_FLAG,
    HEAD_AND_SHOULDERS,
+   INVERTED_HEAD_AND_SHOULDERS,
    ALL
   };
 
@@ -234,6 +235,107 @@ bool IsBullishPennant(const double &high[], const double &low[], const long &vol
                     breakoutPrice = upFractal1;
                     return true;
                 }
+            }
+        }
+    }
+
+    return false;
+}
+//+------------------------------------------------------------------+
+//| Inverted Head and Shoulders Detection                            |
+//+------------------------------------------------------------------+
+bool IsInvertedHeadAndShoulders(const double &high[], const double &low[], const long &volume[],
+                                double &breakoutPrice, double &stopLoss, double &takeProfit)
+{
+    Print("Analyzing for Inverted Head and Shoulders...");
+    // Find 3 troughs (fractals)
+    double upper_fractals[], lower_fractals[];
+    int upper_fractal_indices[], lower_fractal_indices[];
+    int upper_fractal_count = 0, lower_fractal_count = 0;
+
+    double upper_fractals_buffer[], lower_fractals_buffer[];
+    CopyBuffer(fractals_handle, 0, 0, LookbackBars, upper_fractals_buffer);
+    CopyBuffer(fractals_handle, 1, 0, LookbackBars, lower_fractals_buffer);
+
+    for(int i = 0; i < LookbackBars; i++)
+    {
+        if(upper_fractals_buffer[i] > 0)
+        {
+            ArrayResize(upper_fractals, upper_fractal_count + 1);
+            ArrayResize(upper_fractal_indices, upper_fractal_count + 1);
+            upper_fractals[upper_fractal_count] = upper_fractals_buffer[i];
+            upper_fractal_indices[upper_fractal_count] = i;
+            upper_fractal_count++;
+        }
+        if(lower_fractals_buffer[i] > 0)
+        {
+            ArrayResize(lower_fractals, lower_fractal_count + 1);
+            ArrayResize(lower_fractal_indices, lower_fractal_count + 1);
+            lower_fractals[lower_fractal_count] = lower_fractals_buffer[i];
+            lower_fractal_indices[lower_fractal_count] = i;
+            lower_fractal_count++;
+        }
+    }
+
+    if(lower_fractal_count < 3 || upper_fractal_count < 2)
+        return false;
+
+    // Identify Left Shoulder, Head, and Right Shoulder
+    double leftShoulder = lower_fractals[2];
+    int leftShoulderIndex = lower_fractal_indices[2];
+    double head = lower_fractals[1];
+    int headIndex = lower_fractal_indices[1];
+    double rightShoulder = lower_fractals[0];
+    int rightShoulderIndex = lower_fractal_indices[0];
+
+    if(head < leftShoulder && head < rightShoulder)
+    {
+        // Symmetry Check
+        double shoulderHeightDifference = MathAbs(leftShoulder - rightShoulder);
+        if(shoulderHeightDifference > (MathMax(leftShoulder, rightShoulder) - head) * SymmetryTolerance)
+            return false;
+
+        int leftDuration = headIndex - leftShoulderIndex;
+        int rightDuration = rightShoulderIndex - headIndex;
+        double durationDifference = MathAbs(leftDuration - rightDuration);
+        if(durationDifference > MathMin(leftDuration, rightDuration) * SymmetryTolerance)
+            return false;
+
+        // Identify Neckline
+        double necklineHigh1 = upper_fractals[1];
+        int necklineHighIndex1 = upper_fractal_indices[1];
+        double necklineHigh2 = upper_fractals[0];
+        int necklineHighIndex2 = upper_fractal_indices[0];
+
+        // Neckline Slope Analysis
+        double necklineSlope = (necklineHigh1 - necklineHigh2) / (necklineHighIndex1 - necklineHighIndex2);
+        if(necklineSlope < 0)
+            return false;
+
+        // Confirm preceding downtrend
+        double price_at_pattern_start = high[leftShoulderIndex];
+        double price_before_pattern = high[leftShoulderIndex + 20]; // 20 bars before pattern
+        if(price_before_pattern - price_at_pattern_start > scaled_DowntrendMinHeight * _Point)
+        {
+            // Volume Confirmation
+            long leftShoulderVolume = 0;
+            for(int i = leftShoulderIndex; i > headIndex; i--)
+                leftShoulderVolume += volume[i];
+
+            long headVolume = 0;
+            for(int i = headIndex; i > rightShoulderIndex; i--)
+                headVolume += volume[i];
+
+            long rightShoulderVolume = 0;
+            for(int i = rightShoulderIndex; i > 1; i--)
+                rightShoulderVolume += volume[i];
+
+            if(leftShoulderVolume > headVolume && headVolume > rightShoulderVolume)
+            {
+                breakoutPrice = necklineHigh2;
+                stopLoss = rightShoulder - StopLossPips * _Point;
+                takeProfit = breakoutPrice + (necklineHigh1 - head);
+                return true;
             }
         }
     }
@@ -905,6 +1007,18 @@ void ManageTrailingStop()
             if(close[1] < breakdownPrice)
             {
                 ExecuteTrade(ORDER_TYPE_SELL, stopLoss, "Head and Shoulders");
+            }
+        }
+    }
+
+    if(PatternToTrade == INVERTED_HEAD_AND_SHOULDERS || PatternToTrade == ALL)
+    {
+        double breakoutPrice = 0, stopLoss = 0, takeProfit = 0;
+        if(IsInvertedHeadAndShoulders(high, low, volume, breakoutPrice, stopLoss, takeProfit))
+        {
+            if(close[1] > breakoutPrice)
+            {
+                ExecuteTrade(ORDER_TYPE_BUY, stopLoss, "Inverted Head and Shoulders");
             }
         }
     }
