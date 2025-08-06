@@ -239,6 +239,117 @@ bool IsBullishPennant(const double &high[], const double &low[], const long &vol
     return false;
 }
 //+------------------------------------------------------------------+
+//| Bearish Flag Detection                                           |
+//+------------------------------------------------------------------+
+bool IsBearishFlag(const double &high[], const double &low[], const long &volume[],
+                   double &breakdownPrice, double &stopLoss, double &takeProfit)
+{
+    Print("Analyzing for Bearish Flag...");
+    // 1. Find the Flagpole
+    int flagpoleStartIndex = -1;
+    double flagpoleHigh = 0, flagpoleLow = 0;
+    for(int i = 1; i < LookbackBars - 20; i++)
+    {
+        if(low[i] < low[i+1] && high[i] < high[i+1] && (high[i+10] - low[i]) > scaled_FlagpoleMinHeight * _Point)
+        {
+            // Confirm preceding downtrend
+            double price_at_flagpole_start = high[i+10];
+            double price_before_flagpole = high[i + 20]; // 10 bars before flagpole
+            if(price_before_flagpole - price_at_flagpole_start > scaled_DowntrendMinHeight * _Point)
+            {
+                flagpoleStartIndex = i;
+                flagpoleHigh = high[i+10];
+                flagpoleLow = low[i];
+                break;
+            }
+        }
+    }
+
+    if(flagpoleStartIndex == -1)
+        return false;
+
+    // 2. Find the Flag
+    int flagStartShift = flagpoleStartIndex - 10;
+    double upper_fractals[], lower_fractals[];
+    int upper_fractal_indices[], lower_fractal_indices[];
+    int upper_fractal_count = 0, lower_fractal_count = 0;
+
+    double upper_fractals_buffer[], lower_fractals_buffer[];
+    CopyBuffer(fractals_handle, 0, flagStartShift, 20, upper_fractals_buffer);
+    CopyBuffer(fractals_handle, 1, flagStartShift, 20, lower_fractals_buffer);
+
+    for(int i = 0; i < 20; i++)
+    {
+        if(upper_fractals_buffer[i] > 0)
+        {
+            ArrayResize(upper_fractals, upper_fractal_count + 1);
+            ArrayResize(upper_fractal_indices, upper_fractal_count + 1);
+            upper_fractals[upper_fractal_count] = upper_fractals_buffer[i];
+            upper_fractal_indices[upper_fractal_count] = i;
+            upper_fractal_count++;
+        }
+        if(lower_fractals_buffer[i] > 0)
+        {
+            ArrayResize(lower_fractals, lower_fractal_count + 1);
+            ArrayResize(lower_fractal_indices, lower_fractal_count + 1);
+            lower_fractals[lower_fractal_count] = lower_fractals_buffer[i];
+            lower_fractal_indices[lower_fractal_count] = i;
+            lower_fractal_count++;
+        }
+    }
+
+    if(upper_fractal_count < 2 || lower_fractal_count < 2)
+        return false;
+
+    // Check for upward sloping channel
+    double upper_slope = (upper_fractals[0] - upper_fractals[1]) / (upper_fractal_indices[0] - upper_fractal_indices[1]);
+    double lower_slope = (lower_fractals[0] - lower_fractals[1]) / (lower_fractal_indices[0] - lower_fractal_indices[1]);
+
+    if(upper_slope > 0 && lower_slope > 0 && MathAbs(upper_slope - lower_slope) < 0.1)
+    {
+        // Check duration
+        int duration = MathAbs(upper_fractal_indices[0] - lower_fractal_indices[0]);
+        if(duration > FlagMaxDuration)
+            return false;
+
+        // 3. Volume Confirmation
+        long flagpoleVolume = 0;
+        for(int i = flagpoleStartIndex; i > flagStartShift; i--)
+            flagpoleVolume += volume[i];
+
+        long flagVolume = 0;
+        for(int i = flagStartShift; i > 1; i--)
+            flagVolume += volume[i];
+
+        if(flagpoleVolume > flagVolume)
+        {
+            // RSI Confirmation
+            double rsi_buffer[];
+            CopyBuffer(rsi_handle, 0, 0, RsiDivergenceLookback, rsi_buffer);
+            ArraySetAsSeries(rsi_buffer, true);
+            if(rsi_buffer[1] < 30) // Check if RSI was oversold
+            {
+                for(int i = 1; i < duration; i++)
+                {
+                    if(rsi_buffer[i] > 30) // Check if RSI has recovered
+                    {
+                        // MACD Confirmation
+                        if(CheckMACDConfirmation(BEARISH_CROSS))
+                        {
+                            breakdownPrice = lower_fractals[0];
+                            stopLoss = upper_fractals[0] + StopLossPips * _Point;
+                            takeProfit = breakdownPrice - (flagpoleHigh - flagpoleLow);
+                            return true;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    return false;
+}
+//+------------------------------------------------------------------+
 //| Bearish Pennant Detection                                        |
 //+------------------------------------------------------------------+
 bool IsBearishPennant(const double &high[], const double &low[], const long &volume[],
@@ -667,6 +778,18 @@ void ManageTrailingStop()
             if(close[1] > breakoutPrice)
             {
                 ExecuteTrade(ORDER_TYPE_BUY, stopLoss, "Bullish Flag");
+            }
+        }
+    }
+
+    if(PatternToTrade == BEARISH_FLAG || PatternToTrade == ALL)
+    {
+        double breakdownPrice = 0, stopLoss = 0, takeProfit = 0;
+        if(IsBearishFlag(high, low, volume, breakdownPrice, stopLoss, takeProfit))
+        {
+            if(close[1] < breakdownPrice)
+            {
+                ExecuteTrade(ORDER_TYPE_SELL, stopLoss, "Bearish Flag");
             }
         }
     }
