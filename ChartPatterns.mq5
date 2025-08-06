@@ -47,6 +47,7 @@ input bool                  EnableTrailingStop = true;        // Enable Trailing
 input int                   TrailingStopPlusPips = 10;        // Pips to add to SL when trailing
 input int                   RectangleMinDuration = 10;        // Minimum duration of a rectangle in bars
 input int                   RectangleMaxDuration = 50;        // Maximum duration of a rectangle in bars
+input int                   FlagMaxDuration   = 20;           // Maximum duration of a flag in bars
 
 //--- global variables
 CTrade trade;
@@ -881,6 +882,11 @@ bool IsBullishFlag(const double &high[], const double &low[], const long &volume
 
     if(upper_slope < 0 && lower_slope < 0 && MathAbs(upper_slope - lower_slope) < 0.1)
     {
+        // Check duration
+        int duration = MathAbs(upper_fractal_indices[0] - lower_fractal_indices[0]);
+        if(duration > FlagMaxDuration)
+            return false;
+
         // 3. Volume Confirmation
         long flagpoleVolume = 0;
         for(int i = flagpoleStartIndex; i > flagStartShift; i--)
