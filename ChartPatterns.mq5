@@ -105,9 +105,29 @@ int OnInit()
 //---
    trade.SetExpertMagicNumber(MagicNumber);
    fractals_handle = iFractals(_Symbol, _Period);
+   if(fractals_handle == INVALID_HANDLE)
+   {
+       Print("Error creating Fractals indicator handle - error: ", GetLastError());
+       return(INIT_FAILED);
+   }
    rsi_handle = iRSI(_Symbol, _Period, RsiPeriod, PRICE_CLOSE);
+   if(rsi_handle == INVALID_HANDLE)
+   {
+       Print("Error creating RSI indicator handle - error: ", GetLastError());
+       return(INIT_FAILED);
+   }
    macd_handle = iMACD(_Symbol, _Period, MacdFastEmaPeriod, MacdSlowEmaPeriod, MacdSignalPeriod, PRICE_CLOSE);
+   if(macd_handle == INVALID_HANDLE)
+   {
+       Print("Error creating MACD indicator handle - error: ", GetLastError());
+       return(INIT_FAILED);
+   }
    ma_handle = iMA(_Symbol, _Period, LongTermMaPeriod, 0, MODE_SMA, PRICE_CLOSE);
+   if(ma_handle == INVALID_HANDLE)
+   {
+       Print("Error creating MA indicator handle - error: ", GetLastError());
+       return(INIT_FAILED);
+   }
    ScaleParametersByTimeframe();
    return(INIT_SUCCEEDED);
   }
