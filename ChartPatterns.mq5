@@ -21,6 +21,8 @@ enum ENUM_PATTERN_TO_TRADE
    BULLISH_RECTANGLE,
    BEARISH_RECTANGLE,
    BULLISH_FLAG,
+   BEARISH_FLAG,
+   HEAD_AND_SHOULDERS,
    ALL
   };
 
@@ -232,6 +234,91 @@ bool IsBullishPennant(const double &high[], const double &low[], const long &vol
                     breakoutPrice = upFractal1;
                     return true;
                 }
+            }
+        }
+    }
+
+    return false;
+}
+//+------------------------------------------------------------------+
+//| Head and Shoulders Detection                                     |
+//+------------------------------------------------------------------+
+bool IsHeadAndShoulders(const double &high[], const double &low[], const long &volume[],
+                        double &breakdownPrice, double &stopLoss, double &takeProfit)
+{
+    Print("Analyzing for Head and Shoulders...");
+    // Find 3 peaks (fractals)
+    double upper_fractals[], lower_fractals[];
+    int upper_fractal_indices[], lower_fractal_indices[];
+    int upper_fractal_count = 0, lower_fractal_count = 0;
+
+    double upper_fractals_buffer[], lower_fractals_buffer[];
+    CopyBuffer(fractals_handle, 0, 0, LookbackBars, upper_fractals_buffer);
+    CopyBuffer(fractals_handle, 1, 0, LookbackBars, lower_fractals_buffer);
+
+    for(int i = 0; i < LookbackBars; i++)
+    {
+        if(upper_fractals_buffer[i] > 0)
+        {
+            ArrayResize(upper_fractals, upper_fractal_count + 1);
+            ArrayResize(upper_fractal_indices, upper_fractal_count + 1);
+            upper_fractals[upper_fractal_count] = upper_fractals_buffer[i];
+            upper_fractal_indices[upper_fractal_count] = i;
+            upper_fractal_count++;
+        }
+        if(lower_fractals_buffer[i] > 0)
+        {
+            ArrayResize(lower_fractals, lower_fractal_count + 1);
+            ArrayResize(lower_fractal_indices, lower_fractal_count + 1);
+            lower_fractals[lower_fractal_count] = lower_fractals_buffer[i];
+            lower_fractal_indices[lower_fractal_count] = i;
+            lower_fractal_count++;
+        }
+    }
+
+    if(upper_fractal_count < 3 || lower_fractal_count < 2)
+        return false;
+
+    // Identify Left Shoulder, Head, and Right Shoulder
+    double leftShoulder = upper_fractals[2];
+    int leftShoulderIndex = upper_fractal_indices[2];
+    double head = upper_fractals[1];
+    int headIndex = upper_fractal_indices[1];
+    double rightShoulder = upper_fractals[0];
+    int rightShoulderIndex = upper_fractal_indices[0];
+
+    if(head > leftShoulder && head > rightShoulder)
+    {
+        // Identify Neckline
+        double necklineLow1 = lower_fractals[1];
+        int necklineLowIndex1 = lower_fractal_indices[1];
+        double necklineLow2 = lower_fractals[0];
+        int necklineLowIndex2 = lower_fractal_indices[0];
+
+        // Confirm preceding uptrend
+        double price_at_pattern_start = low[leftShoulderIndex];
+        double price_before_pattern = low[leftShoulderIndex + 20]; // 20 bars before pattern
+        if(price_at_pattern_start - price_before_pattern > scaled_UptrendMinHeight * _Point)
+        {
+            // Volume Confirmation
+            long leftShoulderVolume = 0;
+            for(int i = leftShoulderIndex; i > headIndex; i--)
+                leftShoulderVolume += volume[i];
+
+            long headVolume = 0;
+            for(int i = headIndex; i > rightShoulderIndex; i--)
+                headVolume += volume[i];
+
+            long rightShoulderVolume = 0;
+            for(int i = rightShoulderIndex; i > 1; i--)
+                rightShoulderVolume += volume[i];
+
+            if(leftShoulderVolume > headVolume && headVolume > rightShoulderVolume)
+            {
+                breakdownPrice = necklineLow2;
+                stopLoss = rightShoulder + StopLossPips * _Point;
+                takeProfit = breakdownPrice - (head - necklineLow1);
+                return true;
             }
         }
     }
@@ -790,6 +877,18 @@ void ManageTrailingStop()
             if(close[1] < breakdownPrice)
             {
                 ExecuteTrade(ORDER_TYPE_SELL, stopLoss, "Bearish Flag");
+            }
+        }
+    }
+
+    if(PatternToTrade == HEAD_AND_SHOULDERS || PatternToTrade == ALL)
+    {
+        double breakdownPrice = 0, stopLoss = 0, takeProfit = 0;
+        if(IsHeadAndShoulders(high, low, volume, breakdownPrice, stopLoss, takeProfit))
+        {
+            if(close[1] < breakdownPrice)
+            {
+                ExecuteTrade(ORDER_TYPE_SELL, stopLoss, "Head and Shoulders");
             }
         }
     }
