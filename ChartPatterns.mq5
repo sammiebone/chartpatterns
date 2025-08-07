@@ -1261,7 +1261,23 @@ void ManageTrailingStop()
         double breakoutPrice = 0, breakdownPrice = 0, patternHeight = 0;
         int breakout_type = IsBroadeningTriangle(high, low, volume, breakoutPrice, breakdownPrice, patternHeight);
 
-        if(breakout_type == 1) // Bullish breakout
+        if(breakout_type == 3) // Bearish Reversal
+        {
+            if(close[1] < breakdownPrice)
+            {
+                double sl = breakoutPrice;
+                ExecuteTrade(ORDER_TYPE_SELL, sl, "Broadening Triangle (Reversal)");
+            }
+        }
+        else if(breakout_type == 4) // Bullish Reversal
+        {
+            if(close[1] > breakoutPrice)
+            {
+                double sl = breakdownPrice;
+                ExecuteTrade(ORDER_TYPE_BUY, sl, "Broadening Triangle (Reversal)");
+            }
+        }
+        else if(breakout_type == 1) // Bullish breakout
         {
             if(close[1] > breakoutPrice)
             {
@@ -1643,6 +1659,21 @@ int IsBroadeningTriangle(const double &high[], const double &low[], const long &
         {
             Print("Broadening Triangle: Diverging trendlines found.");
 
+            // Prior Trend Analysis
+            int pattern_start_index = MathMax(upper_fractal_indices[2], lower_fractal_indices[2]);
+            if(pattern_start_index + 20 >= LookbackBars)
+            {
+                Print("Broadening Triangle: Not enough historical data for preceding trend check.");
+                return 0;
+            }
+            double price_at_pattern_start_high = high[pattern_start_index];
+            double price_before_pattern_high = high[pattern_start_index + 20];
+            double price_at_pattern_start_low = low[pattern_start_index];
+            double price_before_pattern_low = low[pattern_start_index + 20];
+
+            bool is_uptrend = price_at_pattern_start_low - price_before_pattern_low > scaled_UptrendMinHeight * _Point;
+            bool is_downtrend = price_before_pattern_high - price_at_pattern_start_high > scaled_DowntrendMinHeight * _Point;
+
             // Volume Confirmation
             long first_half_volume = 0;
             long second_half_volume = 0;
@@ -1663,8 +1694,11 @@ int IsBroadeningTriangle(const double &high[], const double &low[], const long &
                 breakoutPrice = upper_fractals[0];
                 breakdownPrice = low[lower_fractal_indices[0]];
 
-                if(high[1] > breakoutPrice) return 1; // Bullish breakout
-                if(low[1] < breakdownPrice) return 2; // Bearish breakdown
+                if(is_uptrend && low[1] < breakdownPrice) return 3; // Bearish Reversal
+                if(is_downtrend && high[1] > breakoutPrice) return 4; // Bullish Reversal
+
+                if(high[1] > breakoutPrice) return 1; // Bullish Breakout
+                if(low[1] < breakdownPrice) return 2; // Bearish Breakdown
             }
             else { Print("Broadening Triangle: Increasing volume not confirmed."); }
         }
