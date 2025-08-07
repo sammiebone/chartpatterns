@@ -26,6 +26,7 @@ enum ENUM_PATTERN_TO_TRADE
    INVERTED_HEAD_AND_SHOULDERS,
    FALLING_WEDGE,
    SYMMETRICAL_TRIANGLE,
+   BROADENING_TRIANGLE,
    ALL
   };
 
@@ -1253,6 +1254,30 @@ void ManageTrailingStop()
             }
         }
     }
+
+    if(PatternToTrade == BROADENING_TRIANGLE || PatternToTrade == ALL)
+    {
+        Print("OnTick: Analyzing for Broadening Triangle...");
+        double breakoutPrice = 0, breakdownPrice = 0, patternHeight = 0;
+        int breakout_type = IsBroadeningTriangle(high, low, volume, breakoutPrice, breakdownPrice, patternHeight);
+
+        if(breakout_type == 1) // Bullish breakout
+        {
+            if(close[1] > breakoutPrice)
+            {
+                double sl = breakdownPrice;
+                ExecuteTrade(ORDER_TYPE_BUY, sl, "Broadening Triangle");
+            }
+        }
+        else if(breakout_type == 2) // Bearish breakout
+        {
+            if(close[1] < breakdownPrice)
+            {
+                double sl = breakoutPrice;
+                ExecuteTrade(ORDER_TYPE_SELL, sl, "Broadening Triangle");
+            }
+        }
+    }
 }
 //+------------------------------------------------------------------+
 //| Bullish Rectangle Detection                                      |
@@ -1562,6 +1587,92 @@ bool IsBullishFlag(const double &high[], const double &low[], const long &volume
      else { Print("Bullish Flag: Downward sloping channel not found."); }
 
     return false;
+}
+//+------------------------------------------------------------------+
+//| Broadening Triangle Detection                                    |
+//+------------------------------------------------------------------+
+int IsBroadeningTriangle(const double &high[], const double &low[], const long &volume[],
+                         double &breakoutPrice, double &breakdownPrice, double &patternHeight)
+{
+    Print("Analyzing for Broadening Triangle...");
+    // Find at least 3 higher highs and 3 lower lows
+    double upper_fractals[], lower_fractals[];
+    int upper_fractal_indices[], lower_fractal_indices[];
+    int upper_fractal_count = 0, lower_fractal_count = 0;
+
+    double upper_fractals_buffer[], lower_fractals_buffer[];
+    CopyBuffer(fractals_handle, 0, 0, LookbackBars, upper_fractals_buffer);
+    CopyBuffer(fractals_handle, 1, 0, LookbackBars, lower_fractals_buffer);
+
+    for(int i = 0; i < LookbackBars; i++)
+    {
+        if(upper_fractals_buffer[i] > 0)
+        {
+            ArrayResize(upper_fractals, upper_fractal_count + 1);
+            ArrayResize(upper_fractal_indices, upper_fractal_count + 1);
+            upper_fractals[upper_fractal_count] = upper_fractals_buffer[i];
+            upper_fractal_indices[upper_fractal_count] = i;
+            upper_fractal_count++;
+        }
+        if(lower_fractals_buffer[i] > 0)
+        {
+            ArrayResize(lower_fractals, lower_fractal_count + 1);
+            ArrayResize(lower_fractal_indices, lower_fractal_count + 1);
+            lower_fractals[lower_fractal_count] = lower_fractals_buffer[i];
+            lower_fractal_indices[lower_fractal_count] = i;
+            lower_fractal_count++;
+        }
+    }
+
+    if(upper_fractal_count < 3 || lower_fractal_count < 3)
+    {
+        Print("Broadening Triangle: Not enough fractals.");
+        return 0;
+    }
+
+    // Check for higher highs and lower lows
+    if(upper_fractals[0] > upper_fractals[1] && upper_fractals[1] > upper_fractals[2] &&
+       low[lower_fractal_indices[0]] < low[lower_fractal_indices[1]] && low[lower_fractal_indices[1]] < low[lower_fractal_indices[2]])
+    {
+        Print("Broadening Triangle: Higher highs and lower lows found.");
+        // Check for diverging trendlines
+        double upper_slope = (upper_fractals[0] - upper_fractals[2]) / (upper_fractal_indices[0] - upper_fractal_indices[2]);
+        double lower_slope = (low[lower_fractal_indices[0]] - low[lower_fractal_indices[2]]) / (lower_fractal_indices[0] - lower_fractal_indices[2]);
+
+        if(upper_slope > 0 && lower_slope < 0)
+        {
+            Print("Broadening Triangle: Diverging trendlines found.");
+
+            // Volume Confirmation
+            long first_half_volume = 0;
+            long second_half_volume = 0;
+            int pattern_start_index = MathMax(upper_fractal_indices[2], lower_fractal_indices[2]);
+            int pattern_end_index = MathMin(upper_fractal_indices[0], lower_fractal_indices[0]);
+            int pattern_duration = pattern_start_index - pattern_end_index;
+            int midpoint = pattern_end_index + pattern_duration / 2;
+
+            for(int i = pattern_start_index; i > midpoint; i--)
+                first_half_volume += volume[i];
+            for(int i = midpoint; i > pattern_end_index; i--)
+                second_half_volume += volume[i];
+
+            if(second_half_volume > first_half_volume)
+            {
+                Print("Broadening Triangle: Increasing volume confirmed.");
+                patternHeight = upper_fractals[2] - low[lower_fractal_indices[2]];
+                breakoutPrice = upper_fractals[0];
+                breakdownPrice = low[lower_fractal_indices[0]];
+
+                if(high[1] > breakoutPrice) return 1; // Bullish breakout
+                if(low[1] < breakdownPrice) return 2; // Bearish breakdown
+            }
+            else { Print("Broadening Triangle: Increasing volume not confirmed."); }
+        }
+        else { Print("Broadening Triangle: Diverging trendlines not found."); }
+    }
+    else { Print("Broadening Triangle: Higher highs and lower lows not found."); }
+
+    return 0;
 }
 //+------------------------------------------------------------------+
 //| Symmetrical Triangle Detection                                   |
