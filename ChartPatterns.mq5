@@ -29,6 +29,7 @@ enum ENUM_PATTERN_TO_TRADE
    BROADENING_TRIANGLE,
    ASCENDING_TRIANGLE,
    DESCENDING_TRIANGLE,
+   DOUBLE_TOP,
    ALL
   };
 
@@ -58,6 +59,8 @@ input int                   RectangleMaxDuration = 50;        // Maximum duratio
 input int                   FlagMaxDuration   = 20;           // Maximum duration of a flag in bars
 input double                SymmetryTolerance = 0.2;          // Tolerance for H&S symmetry (0-1)
 input double                ApexRatio         = 0.75;         // Apex ratio for triangles (0-1)
+input int                   MinPeakDistance   = 10;           // Min bars between Double Top/Bottom peaks
+input int                   MaxPeakDistance   = 50;           // Max bars between Double Top/Bottom peaks
 
 //--- global variables
 CTrade trade;
@@ -286,6 +289,106 @@ bool IsBullishPennant(const double &high[], const double &low[], const long &vol
          else { Print("Bullish Pennant: Volume not confirmed."); }
     }
      else { Print("Bullish Pennant: Converging trendlines not found."); }
+
+    return false;
+}
+//+------------------------------------------------------------------+
+//| Double Top Detection                                             |
+//+------------------------------------------------------------------+
+bool IsDoubleTop(const double &high[], const double &low[], const long &volume[],
+                 double &breakdownPrice, double &stopLoss, double &takeProfit)
+{
+    Print("Analyzing for Double Top...");
+    // Find at least 2 peaks and 1 trough
+    double upper_fractals[], lower_fractals[];
+    int upper_fractal_indices[], lower_fractal_indices[];
+    int upper_fractal_count = 0, lower_fractal_count = 0;
+
+    double upper_fractals_buffer[], lower_fractals_buffer[];
+    CopyBuffer(fractals_handle, 0, 0, LookbackBars, upper_fractals_buffer);
+    CopyBuffer(fractals_handle, 1, 0, LookbackBars, lower_fractals_buffer);
+
+    for(int i = 0; i < LookbackBars; i++)
+    {
+        if(upper_fractals_buffer[i] > 0)
+        {
+            ArrayResize(upper_fractals, upper_fractal_count + 1);
+            ArrayResize(upper_fractal_indices, upper_fractal_count + 1);
+            upper_fractals[upper_fractal_count] = upper_fractals_buffer[i];
+            upper_fractal_indices[upper_fractal_count] = i;
+            upper_fractal_count++;
+        }
+        if(lower_fractals_buffer[i] > 0)
+        {
+            ArrayResize(lower_fractals, lower_fractal_count + 1);
+            ArrayResize(lower_fractal_indices, lower_fractal_count + 1);
+            lower_fractals[lower_fractal_count] = lower_fractals_buffer[i];
+            lower_fractal_indices[lower_fractal_count] = i;
+            lower_fractal_count++;
+        }
+    }
+
+    if(upper_fractal_count < 2 || lower_fractal_count < 1)
+    {
+        Print("Double Top: Not enough fractals.");
+        return false;
+    }
+
+    double peak1 = upper_fractals[1];
+    int peak1_index = upper_fractal_indices[1];
+    double peak2 = upper_fractals[0];
+    int peak2_index = upper_fractal_indices[0];
+    double trough = low[lower_fractal_indices[0]];
+    int trough_index = lower_fractal_indices[0];
+
+    // Basic structure: trough must be between the two peaks
+    if(trough_index < peak1_index && trough_index > peak2_index)
+    {
+        // Prior Trend Confirmation
+        if(peak1_index + 20 >= LookbackBars)
+        {
+            Print("Double Top: Not enough historical data for preceding trend check.");
+            return false;
+        }
+        double price_before_pattern = low[peak1_index + 20];
+        if(peak1 - price_before_pattern > scaled_UptrendMinHeight * _Point)
+        {
+            Print("Double Top: Preceding uptrend confirmed.");
+
+            // Peak Alignment Check
+            double tolerance = 15 * _Point;
+            if(MathAbs(peak1 - peak2) < tolerance)
+            {
+                Print("Double Top: Peaks are aligned.");
+
+                // Time Between Peaks Check
+                int peak_distance = peak1_index - peak2_index;
+                if(peak_distance >= MinPeakDistance && peak_distance <= MaxPeakDistance)
+                {
+                    Print("Double Top: Peak distance is valid.");
+
+                    // Volume Confirmation
+                    long peak1_volume = 0;
+                    long peak2_volume = 0;
+                    for(int i = peak1_index; i > trough_index; i--) peak1_volume += volume[i];
+                    for(int i = trough_index; i > peak2_index; i--) peak2_volume += volume[i];
+
+                    if(peak2_volume < peak1_volume)
+                    {
+                        Print("Double Top: Volume confirmed.");
+                        breakdownPrice = trough;
+                        stopLoss = MathMax(peak1, peak2) + StopLossPips * _Point;
+                        takeProfit = breakdownPrice - (MathMax(peak1, peak2) - trough);
+                        return true;
+                    }
+                    else { Print("Double Top: Volume not confirmed."); }
+                }
+                else { Print("Double Top: Peak distance is not valid."); }
+            }
+            else { Print("Double Top: Peaks are not aligned."); }
+        }
+        else { Print("Double Top: Preceding uptrend not confirmed."); }
+    }
 
     return false;
 }
@@ -1403,6 +1506,19 @@ void ManageTrailingStop()
             if(close[1] < breakdownPrice)
             {
                 ExecuteTrade(ORDER_TYPE_SELL, stopLoss, "Descending Triangle");
+            }
+        }
+    }
+
+    if(PatternToTrade == DOUBLE_TOP || PatternToTrade == ALL)
+    {
+        Print("OnTick: Analyzing for Double Top...");
+        double breakdownPrice = 0, stopLoss = 0, takeProfit = 0;
+        if(IsDoubleTop(high, low, volume, breakdownPrice, stopLoss, takeProfit))
+        {
+            if(close[1] < breakdownPrice)
+            {
+                ExecuteTrade(ORDER_TYPE_SELL, stopLoss, "Double Top");
             }
         }
     }
