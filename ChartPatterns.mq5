@@ -1223,7 +1223,21 @@ void ManageTrailingStop()
         double breakoutPrice = 0, breakdownPrice = 0, stopLoss = 0, takeProfit = 0;
         int breakout_type = IsSymmetricalTriangle(high, low, volume, breakoutPrice, breakdownPrice, stopLoss, takeProfit);
 
-        if(breakout_type == 1) // Bullish breakout
+        if(breakout_type == 3) // Bullish breakout with prior uptrend
+        {
+            if(close[1] > breakoutPrice)
+            {
+                ExecuteTrade(ORDER_TYPE_BUY, stopLoss, "Symmetrical Triangle (Continuation)");
+            }
+        }
+        else if(breakout_type == 4) // Bearish breakdown with prior downtrend
+        {
+            if(close[1] < breakdownPrice)
+            {
+                ExecuteTrade(ORDER_TYPE_SELL, stopLoss, "Symmetrical Triangle (Continuation)");
+            }
+        }
+        else if(breakout_type == 1) // Bullish breakout
         {
             if(close[1] > breakoutPrice)
             {
@@ -1601,6 +1615,12 @@ int IsSymmetricalTriangle(const double &high[], const double &low[], const long 
         if(upper_slope < 0 && lower_slope > 0)
         {
             Print("Symmetrical Triangle: Converging trendlines found.");
+
+            // Prior Trend Analysis
+            double price_at_triangle_start = low[lower_fractal_indices[1]];
+            double price_before_triangle = low[lower_fractal_indices[1] + 20];
+            bool is_uptrend = price_at_triangle_start - price_before_triangle > scaled_UptrendMinHeight * _Point;
+
             // Volume Confirmation
             long triangleVolume = 0;
             for(int i = upper_fractal_indices[1]; i > 1; i--)
@@ -1614,6 +1634,10 @@ int IsSymmetricalTriangle(const double &high[], const double &low[], const long 
                 stopLoss = low[lower_fractal_indices[0]] - StopLossPips * _Point;
                 takeProfit = breakoutPrice + (upper_fractals[1] - low[lower_fractal_indices[1]]);
 
+                if(is_uptrend && high[1] > breakoutPrice)
+                    return 3; // Bullish breakout with prior uptrend
+                if(!is_uptrend && low[1] < breakdownPrice)
+                    return 4; // Bearish breakdown with prior downtrend
                 if(high[1] > breakoutPrice)
                     return 1; // Bullish breakout
                 if(low[1] < breakdownPrice)
