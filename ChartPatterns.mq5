@@ -25,6 +25,7 @@ enum ENUM_PATTERN_TO_TRADE
    HEAD_AND_SHOULDERS,
    INVERTED_HEAD_AND_SHOULDERS,
    FALLING_WEDGE,
+   SYMMETRICAL_TRIANGLE,
    ALL
   };
 
@@ -1215,6 +1216,28 @@ void ManageTrailingStop()
             }
         }
     }
+
+    if(PatternToTrade == SYMMETRICAL_TRIANGLE || PatternToTrade == ALL)
+    {
+        Print("OnTick: Analyzing for Symmetrical Triangle...");
+        double breakoutPrice = 0, breakdownPrice = 0, stopLoss = 0, takeProfit = 0;
+        int breakout_type = IsSymmetricalTriangle(high, low, volume, breakoutPrice, breakdownPrice, stopLoss, takeProfit);
+
+        if(breakout_type == 1) // Bullish breakout
+        {
+            if(close[1] > breakoutPrice)
+            {
+                ExecuteTrade(ORDER_TYPE_BUY, stopLoss, "Symmetrical Triangle");
+            }
+        }
+        else if(breakout_type == 2) // Bearish breakout
+        {
+            if(close[1] < breakdownPrice)
+            {
+                ExecuteTrade(ORDER_TYPE_SELL, stopLoss, "Symmetrical Triangle");
+            }
+        }
+    }
 }
 //+------------------------------------------------------------------+
 //| Bullish Rectangle Detection                                      |
@@ -1524,6 +1547,85 @@ bool IsBullishFlag(const double &high[], const double &low[], const long &volume
      else { Print("Bullish Flag: Downward sloping channel not found."); }
 
     return false;
+}
+//+------------------------------------------------------------------+
+//| Symmetrical Triangle Detection                                   |
+//+------------------------------------------------------------------+
+int IsSymmetricalTriangle(const double &high[], const double &low[], const long &volume[],
+                          double &breakoutPrice, double &breakdownPrice, double &stopLoss, double &takeProfit)
+{
+    Print("Analyzing for Symmetrical Triangle...");
+    // Find at least 2 lower highs and 2 higher lows
+    double upper_fractals[], lower_fractals[];
+    int upper_fractal_indices[], lower_fractal_indices[];
+    int upper_fractal_count = 0, lower_fractal_count = 0;
+
+    double upper_fractals_buffer[], lower_fractals_buffer[];
+    CopyBuffer(fractals_handle, 0, 0, LookbackBars, upper_fractals_buffer);
+    CopyBuffer(fractals_handle, 1, 0, LookbackBars, lower_fractals_buffer);
+
+    for(int i = 0; i < LookbackBars; i++)
+    {
+        if(upper_fractals_buffer[i] > 0)
+        {
+            ArrayResize(upper_fractals, upper_fractal_count + 1);
+            ArrayResize(upper_fractal_indices, upper_fractal_count + 1);
+            upper_fractals[upper_fractal_count] = upper_fractals_buffer[i];
+            upper_fractal_indices[upper_fractal_count] = i;
+            upper_fractal_count++;
+        }
+        if(lower_fractals_buffer[i] > 0)
+        {
+            ArrayResize(lower_fractals, lower_fractal_count + 1);
+            ArrayResize(lower_fractal_indices, lower_fractal_count + 1);
+            lower_fractals[lower_fractal_count] = lower_fractals_buffer[i];
+            lower_fractal_indices[lower_fractal_count] = i;
+            lower_fractal_count++;
+        }
+    }
+
+    if(upper_fractal_count < 2 || lower_fractal_count < 2)
+    {
+        Print("Symmetrical Triangle: Not enough fractals.");
+        return 0;
+    }
+
+    // Check for lower highs and higher lows
+    if(upper_fractals[0] < upper_fractals[1] && low[lower_fractal_indices[0]] > low[lower_fractal_indices[1]])
+    {
+        Print("Symmetrical Triangle: Lower highs and higher lows found.");
+        // Check for converging trendlines
+        double upper_slope = (upper_fractals[0] - upper_fractals[1]) / (upper_fractal_indices[0] - upper_fractal_indices[1]);
+        double lower_slope = (low[lower_fractal_indices[0]] - low[lower_fractal_indices[1]]) / (lower_fractal_indices[0] - lower_fractal_indices[1]);
+
+        if(upper_slope < 0 && lower_slope > 0)
+        {
+            Print("Symmetrical Triangle: Converging trendlines found.");
+            // Volume Confirmation
+            long triangleVolume = 0;
+            for(int i = upper_fractal_indices[1]; i > 1; i--)
+                triangleVolume += volume[i];
+
+            if(volume[1] > triangleVolume / (upper_fractal_indices[1] - 1))
+            {
+                Print("Symmetrical Triangle: Volume confirmed.");
+                breakoutPrice = upper_fractals[0];
+                breakdownPrice = low[lower_fractal_indices[0]];
+                stopLoss = low[lower_fractal_indices[0]] - StopLossPips * _Point;
+                takeProfit = breakoutPrice + (upper_fractals[1] - low[lower_fractal_indices[1]]);
+
+                if(high[1] > breakoutPrice)
+                    return 1; // Bullish breakout
+                if(low[1] < breakdownPrice)
+                    return 2; // Bearish breakout
+            }
+             else { Print("Symmetrical Triangle: Volume not confirmed."); }
+        }
+         else { Print("Symmetrical Triangle: Converging trendlines not found."); }
+    }
+     else { Print("Symmetrical Triangle: Lower highs and higher lows not found."); }
+
+    return 0;
 }
 //+------------------------------------------------------------------+
 //| Expert tick function                                             |
