@@ -175,6 +175,11 @@ bool IsBullishPennant(const double &high[], const double &low[], const long &vol
         if(high[i] > high[i+1] && low[i] > low[i+1] && (high[i] - low[i+10]) > scaled_FlagpoleMinHeight * _Point)
         {
             // Confirm preceding uptrend
+            if(i + 20 >= LookbackBars)
+            {
+                Print("Bullish Pennant: Not enough historical data for preceding trend check.");
+                continue;
+            }
             double price_at_flagpole_start = low[i+10];
             double price_before_flagpole = low[i + 20]; // 10 bars before flagpole
             if(price_at_flagpole_start - price_before_flagpole > scaled_UptrendMinHeight * _Point)
@@ -447,6 +452,11 @@ bool IsInvertedHeadAndShoulders(const double &high[], const double &low[], const
         Print("Inverted Head and Shoulders: Neckline slope confirmed.");
 
         // Confirm preceding downtrend
+        if(leftShoulderIndex + 20 >= LookbackBars)
+        {
+            Print("Inverted Head and Shoulders: Not enough historical data for preceding trend check.");
+            return false;
+        }
         double price_at_pattern_start = high[leftShoulderIndex];
         double price_before_pattern = high[leftShoulderIndex + 20]; // 20 bars before pattern
         if(price_before_pattern - price_at_pattern_start > scaled_DowntrendMinHeight * _Point)
@@ -568,6 +578,11 @@ bool IsHeadAndShoulders(const double &high[], const double &low[], const long &v
         Print("Head and Shoulders: Neckline slope confirmed.");
 
         // Confirm preceding uptrend
+        if(leftShoulderIndex + 20 >= LookbackBars)
+        {
+            Print("Head and Shoulders: Not enough historical data for preceding trend check.");
+            return false;
+        }
         double price_at_pattern_start = low[leftShoulderIndex];
         double price_before_pattern = low[leftShoulderIndex + 20]; // 20 bars before pattern
         if(price_at_pattern_start - price_before_pattern > scaled_UptrendMinHeight * _Point)
@@ -617,6 +632,11 @@ bool IsBearishFlag(const double &high[], const double &low[], const long &volume
         if(low[i] < low[i+1] && high[i] < high[i+1] && (high[i+10] - low[i]) > scaled_FlagpoleMinHeight * _Point)
         {
             // Confirm preceding downtrend
+            if(i + 20 >= LookbackBars)
+            {
+                Print("Bearish Flag: Not enough historical data for preceding trend check.");
+                continue;
+            }
             double price_at_flagpole_start = high[i+10];
             double price_before_flagpole = high[i + 20]; // 10 bars before flagpole
             if(price_before_flagpole - price_at_flagpole_start > scaled_DowntrendMinHeight * _Point)
@@ -824,6 +844,11 @@ bool IsBearishPennant(const double &high[], const double &low[], const long &vol
         {
             Print("Bearish Pennant: Volume confirmed.");
             // Confirm preceding downtrend
+            if(upFractalIndex2 + 20 >= LookbackBars)
+            {
+                Print("Bearish Pennant: Not enough historical data for preceding trend check.");
+                return false;
+            }
             int pennant_start_index = upFractalIndex2;
             double price_at_pennant_start = high[pennant_start_index];
             double price_before_pennant = high[pennant_start_index + 20]; // 20 bars before pennant
@@ -941,6 +966,11 @@ int IsDescendingBroadeningWedge(const double &high[], const double &low[],
             Print("Descending Broadening Wedge: Diverging trendlines found.");
             // Confirm preceding downtrend
             int wedge_start_index = lower_fractal_indices[2];
+            if(wedge_start_index + 20 >= LookbackBars)
+            {
+                Print("Descending Broadening Wedge: Not enough historical data for preceding trend check.");
+                return 0;
+            }
             double price_at_wedge_start = high[wedge_start_index];
             double price_before_wedge = high[wedge_start_index + 20]; // 20 bars before wedge
             if(price_before_wedge - price_at_wedge_start > scaled_DowntrendMinHeight * _Point)
@@ -1027,6 +1057,11 @@ int IsAscendingBroadeningWedge(const double &high[], const double &low[],
             Print("Ascending Broadening Wedge: Diverging trendlines found.");
             // Confirm preceding uptrend
             int wedge_start_index = upper_fractal_indices[2];
+            if(wedge_start_index + 20 >= LookbackBars)
+            {
+                Print("Ascending Broadening Wedge: Not enough historical data for preceding trend check.");
+                return 0;
+            }
             double price_at_wedge_start = low[wedge_start_index];
             double price_before_wedge = low[wedge_start_index + 20]; // 20 bars before wedge
             if(price_at_wedge_start - price_before_wedge > scaled_UptrendMinHeight * _Point)
@@ -1239,6 +1274,11 @@ bool IsBullishRectangle(const double &high[], const double &low[],
             Print("Bullish Rectangle: Duration confirmed.");
             // Confirm preceding uptrend
             int rectangle_start_index = MathMax(upper_fractal_indices[1], lower_fractal_indices[1]);
+            if(rectangle_start_index + 20 >= LookbackBars)
+            {
+                Print("Bullish Rectangle: Not enough historical data for preceding trend check.");
+                return false;
+            }
             double price_at_rectangle_start = low[rectangle_start_index];
             double price_before_rectangle = low[rectangle_start_index + 20]; // 20 bars before rectangle
             if(price_at_rectangle_start - price_before_rectangle > scaled_UptrendMinHeight * _Point)
@@ -1321,6 +1361,11 @@ bool IsBearishRectangle(const double &high[], const double &low[],
             Print("Bearish Rectangle: Duration confirmed.");
             // Confirm preceding downtrend
             int rectangle_start_index = MathMax(upper_fractal_indices[1], lower_fractal_indices[1]);
+            if(rectangle_start_index + 20 >= LookbackBars)
+            {
+                Print("Bearish Rectangle: Not enough historical data for preceding trend check.");
+                return false;
+            }
             double price_at_rectangle_start = high[rectangle_start_index];
             double price_before_rectangle = high[rectangle_start_index + 20]; // 20 bars before rectangle
             if(price_before_rectangle - price_at_rectangle_start > scaled_DowntrendMinHeight * _Point)
@@ -1360,6 +1405,11 @@ bool IsBullishFlag(const double &high[], const double &low[], const long &volume
         if(high[i] > high[i+1] && low[i] > low[i+1] && (high[i] - low[i+10]) > scaled_FlagpoleMinHeight * _Point)
         {
             // Confirm preceding uptrend
+            if(i + 20 >= LookbackBars)
+            {
+                Print("Bullish Flag: Not enough historical data for preceding trend check.");
+                continue;
+            }
             double price_at_flagpole_start = low[i+10];
             double price_before_flagpole = low[i + 20]; // 10 bars before flagpole
             if(price_at_flagpole_start - price_before_flagpole > scaled_UptrendMinHeight * _Point)
