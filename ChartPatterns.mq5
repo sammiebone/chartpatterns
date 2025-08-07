@@ -63,6 +63,7 @@ input double                SymmetryTolerance = 0.2;          // Tolerance for H
 input double                ApexRatio         = 0.75;         // Apex ratio for triangles (0-1)
 input int                   MinPeakDistance   = 10;           // Min bars between Double Top/Bottom peaks
 input int                   MaxPeakDistance   = 50;           // Max bars between Double Top/Bottom peaks
+input bool                  EnableNoWickStrategy = false;     // Enable the No Wick Strategy
 
 //--- global variables
 CTrade trade;
@@ -105,6 +106,31 @@ void ScaleParametersByTimeframe()
             scaled_DowntrendMinHeight *= 4;
             scaled_UptrendMinHeight *= 4;
             break;
+    }
+}
+//+------------------------------------------------------------------+
+//| No Wick Bullish Strategy                                         |
+//+------------------------------------------------------------------+
+void NoWickBullishStrategy()
+{
+    Print("Analyzing for No Wick Bullish Strategy...");
+    // 1. Confirm Bullish Trend
+    double ma_buffer[];
+    CopyBuffer(ma_handle, 0, 0, 1, ma_buffer);
+    if(iClose(_Symbol, _Period, 1) < ma_buffer[0])
+    {
+        Print("No Wick Bullish Strategy: Not in a bullish trend.");
+        return;
+    }
+
+    // 2. Find a bullish candle with no bottom wick
+    if(iLow(_Symbol, _Period, 1) == iOpen(_Symbol, _Period, 1) && iClose(_Symbol, _Period, 1) > iOpen(_Symbol, _Period, 1))
+    {
+        Print("No Wick Bullish Strategy: No-bottom-wick bullish candle found.");
+        double entryPrice = iLow(_Symbol, _Period, 1);
+        double stopLoss = entryPrice - StopLossPips * _Point;
+
+        ExecuteBuyLimit(entryPrice, stopLoss, "No Wick Bullish Strategy");
     }
 }
 //+------------------------------------------------------------------+
@@ -293,6 +319,31 @@ bool IsBullishPennant(const double &high[], const double &low[], const long &vol
      else { Print("Bullish Pennant: Converging trendlines not found."); }
 
     return false;
+}
+//+------------------------------------------------------------------+
+//| No Wick Strategy                                                 |
+//+------------------------------------------------------------------+
+void NoWickStrategy()
+{
+    Print("Analyzing for No Wick Strategy...");
+    // 1. Confirm Bearish Trend
+    double ma_buffer[];
+    CopyBuffer(ma_handle, 0, 0, 1, ma_buffer);
+    if(iClose(_Symbol, _Period, 1) > ma_buffer[0])
+    {
+        Print("No Wick Strategy: Not in a bearish trend.");
+        return;
+    }
+
+    // 2. Find a bearish candle with no top wick
+    if(iHigh(_Symbol, _Period, 1) == iOpen(_Symbol, _Period, 1) && iClose(_Symbol, _Period, 1) < iOpen(_Symbol, _Period, 1))
+    {
+        Print("No Wick Strategy: No-wick bearish candle found.");
+        double entryPrice = iHigh(_Symbol, _Period, 1);
+        double stopLoss = entryPrice + StopLossPips * _Point;
+
+        ExecuteSellLimit(entryPrice, stopLoss, "No Wick Strategy");
+    }
 }
 //+------------------------------------------------------------------+
 //| Triple Top Detection                                             |
@@ -1312,6 +1363,40 @@ void ExecuteTrade(ENUM_ORDER_TYPE type, double sl, string comment)
         trade.Sell(lot_size, NULL, 0, sl, tp2, comment + " TP2");
         trade.Sell(lot_size, NULL, 0, sl, tp3, comment + " TP3");
     }
+}
+//+------------------------------------------------------------------+
+//| Sell Limit Function                                              |
+//+------------------------------------------------------------------+
+void ExecuteSellLimit(double price, double sl, string comment)
+{
+    if(OrdersTotal() > 0 || PositionsTotal() > 0)
+    {
+        Print("ExecuteSellLimit: An order or position already exists.");
+        return;
+    }
+
+    double lot_size = Lots; // Use full lot size for this strategy
+    double tp = price - TP1_Pips * _Point; // Use TP1 for this strategy
+
+    Print("Placing SELL LIMIT order for ", _Symbol, " at Price: ", price, " with Lot Size: ", lot_size, ", SL: ", sl, ", TP: ", tp);
+    trade.SellLimit(lot_size, price, _Symbol, sl, tp, 0, 0, comment);
+}
+//+------------------------------------------------------------------+
+//| Buy Limit Function                                               |
+//+------------------------------------------------------------------+
+void ExecuteBuyLimit(double price, double sl, string comment)
+{
+    if(OrdersTotal() > 0 || PositionsTotal() > 0)
+    {
+        Print("ExecuteBuyLimit: An order or position already exists.");
+        return;
+    }
+
+    double lot_size = Lots; // Use full lot size for this strategy
+    double tp = price + TP1_Pips * _Point; // Use TP1 for this strategy
+
+    Print("Placing BUY LIMIT order for ", _Symbol, " at Price: ", price, " with Lot Size: ", lot_size, ", SL: ", sl, ", TP: ", tp);
+    trade.BuyLimit(lot_size, price, _Symbol, sl, tp, 0, 0, comment);
 }
 //+------------------------------------------------------------------+
 //| Descending Broadening Wedge Detection                            |
@@ -2374,6 +2459,13 @@ void OnTick()
     long volume[];
     if(!GetHistory(LookbackBars, high, low, close, time, volume))
         return;
+
+    // --- No Wick Strategy ---
+    if(EnableNoWickStrategy)
+    {
+        NoWickStrategy();
+        NoWickBullishStrategy();
+    }
 
     // --- Pattern Detection ---
     if(PatternToTrade == BULLISH_PENNANT || PatternToTrade == ALL)
