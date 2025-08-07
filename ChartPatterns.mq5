@@ -54,6 +54,7 @@ input int                   RectangleMinDuration = 10;        // Minimum duratio
 input int                   RectangleMaxDuration = 50;        // Maximum duration of a rectangle in bars
 input int                   FlagMaxDuration   = 20;           // Maximum duration of a flag in bars
 input double                SymmetryTolerance = 0.2;          // Tolerance for H&S symmetry (0-1)
+input double                ApexRatio         = 0.75;         // Apex ratio for triangles (0-1)
 
 //--- global variables
 CTrade trade;
@@ -1615,6 +1616,16 @@ int IsSymmetricalTriangle(const double &high[], const double &low[], const long 
         if(upper_slope < 0 && lower_slope > 0)
         {
             Print("Symmetrical Triangle: Converging trendlines found.");
+
+            // Apex Analysis
+            double apex_x = (low[lower_fractal_indices[1]] - upper_fractals[1] + upper_slope * upper_fractal_indices[1] - lower_slope * lower_fractal_indices[1]) / (upper_slope - lower_slope);
+            double pattern_length = apex_x - upper_fractal_indices[1];
+            double breakout_point = upper_fractal_indices[0];
+            if((breakout_point - upper_fractal_indices[1]) / pattern_length > ApexRatio)
+            {
+                Print("Symmetrical Triangle: Breakout occurred too close to the apex.");
+                return 0;
+            }
 
             // Prior Trend Analysis
             double price_at_triangle_start = low[lower_fractal_indices[1]];
