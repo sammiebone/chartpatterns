@@ -28,6 +28,7 @@ enum ENUM_PATTERN_TO_TRADE
    SYMMETRICAL_TRIANGLE,
    BROADENING_TRIANGLE,
    ASCENDING_TRIANGLE,
+   DESCENDING_TRIANGLE,
    ALL
   };
 
@@ -285,6 +286,90 @@ bool IsBullishPennant(const double &high[], const double &low[], const long &vol
          else { Print("Bullish Pennant: Volume not confirmed."); }
     }
      else { Print("Bullish Pennant: Converging trendlines not found."); }
+
+    return false;
+}
+//+------------------------------------------------------------------+
+//| Descending Triangle Detection                                    |
+//+------------------------------------------------------------------+
+bool IsDescendingTriangle(const double &high[], const double &low[], const long &volume[],
+                          double &breakdownPrice, double &stopLoss, double &takeProfit)
+{
+    Print("Analyzing for Descending Triangle...");
+    // Find at least 2 lower highs and 2 flat lows
+    double upper_fractals[], lower_fractals[];
+    int upper_fractal_indices[], lower_fractal_indices[];
+    int upper_fractal_count = 0, lower_fractal_count = 0;
+
+    double upper_fractals_buffer[], lower_fractals_buffer[];
+    CopyBuffer(fractals_handle, 0, 0, LookbackBars, upper_fractals_buffer);
+    CopyBuffer(fractals_handle, 1, 0, LookbackBars, lower_fractals_buffer);
+
+    for(int i = 0; i < LookbackBars; i++)
+    {
+        if(upper_fractals_buffer[i] > 0)
+        {
+            ArrayResize(upper_fractals, upper_fractal_count + 1);
+            ArrayResize(upper_fractal_indices, upper_fractal_count + 1);
+            upper_fractals[upper_fractal_count] = upper_fractals_buffer[i];
+            upper_fractal_indices[upper_fractal_count] = i;
+            upper_fractal_count++;
+        }
+        if(lower_fractals_buffer[i] > 0)
+        {
+            ArrayResize(lower_fractals, lower_fractal_count + 1);
+            ArrayResize(lower_fractal_indices, lower_fractal_count + 1);
+            lower_fractals[lower_fractal_count] = lower_fractals_buffer[i];
+            lower_fractal_indices[lower_fractal_count] = i;
+            lower_fractal_count++;
+        }
+    }
+
+    if(upper_fractal_count < 2 || lower_fractal_count < 2)
+    {
+        Print("Descending Triangle: Not enough fractals.");
+        return false;
+    }
+
+    // Check for flat support and lower highs
+    double support_level = (low[lower_fractal_indices[0]] + low[lower_fractal_indices[1]]) / 2;
+    double tolerance = 10 * _Point;
+    if(MathAbs(low[lower_fractal_indices[0]] - support_level) < tolerance && MathAbs(low[lower_fractal_indices[1]] - support_level) < tolerance &&
+       upper_fractals[0] < upper_fractals[1])
+    {
+        Print("Descending Triangle: Flat support and lower highs found.");
+
+        // Prior Trend Confirmation
+        int pattern_start_index = MathMax(upper_fractal_indices[1], lower_fractal_indices[1]);
+        if(pattern_start_index + 20 >= LookbackBars)
+        {
+            Print("Descending Triangle: Not enough historical data for preceding trend check.");
+            return false;
+        }
+        double price_at_pattern_start = high[pattern_start_index];
+        double price_before_pattern = high[pattern_start_index + 20];
+        if(price_before_pattern - price_at_pattern_start > scaled_DowntrendMinHeight * _Point)
+        {
+            Print("Descending Triangle: Preceding downtrend confirmed.");
+
+            // Volume Confirmation
+            long pattern_volume = 0;
+            for(int i = pattern_start_index; i > 1; i--)
+                pattern_volume += volume[i];
+
+            if(volume[1] < (pattern_volume / (pattern_start_index - 1)))
+            {
+                Print("Descending Triangle: Diminishing volume confirmed.");
+                breakdownPrice = support_level;
+                stopLoss = upper_fractals[0] + StopLossPips * _Point;
+                takeProfit = breakdownPrice - (upper_fractals[1] - support_level);
+                return true;
+            }
+            else { Print("Descending Triangle: Diminishing volume not confirmed."); }
+        }
+        else { Print("Descending Triangle: Preceding downtrend not confirmed."); }
+    }
+    else { Print("Descending Triangle: Flat support and lower highs not found."); }
 
     return false;
 }
@@ -1305,6 +1390,19 @@ void ManageTrailingStop()
             if(close[1] > breakoutPrice)
             {
                 ExecuteTrade(ORDER_TYPE_BUY, stopLoss, "Ascending Triangle");
+            }
+        }
+    }
+
+    if(PatternToTrade == DESCENDING_TRIANGLE || PatternToTrade == ALL)
+    {
+        Print("OnTick: Analyzing for Descending Triangle...");
+        double breakdownPrice = 0, stopLoss = 0, takeProfit = 0;
+        if(IsDescendingTriangle(high, low, volume, breakdownPrice, stopLoss, takeProfit))
+        {
+            if(close[1] < breakdownPrice)
+            {
+                ExecuteTrade(ORDER_TYPE_SELL, stopLoss, "Descending Triangle");
             }
         }
     }
